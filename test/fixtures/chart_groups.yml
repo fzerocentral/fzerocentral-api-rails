@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  game: one
+  chart_group: one
+
+two:
+  name: MyString
+  game: two
+  chart_group: two

@@ -1,0 +1,2 @@
+class LeafChartGroup < ApplicationRecord
+end
