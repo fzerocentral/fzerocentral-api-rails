@@ -30,6 +30,10 @@ class GamesControllerTest < ActionDispatch::IntegrationTest
 
   test "should destroy game" do
     assert_difference('Game.count', -1) do
+      # To destroy a game, need to destroy its chart groups first, and the
+      # charts of those CGs
+      delete chart_url(charts(:one)), as: :json
+      delete chart_group_url(chart_groups(:one)), as: :json
       delete game_url(@game), as: :json
     end
 

@@ -12,7 +12,7 @@ class ChartGroupsControllerTest < ActionDispatch::IntegrationTest
 
   test "should create chart_group" do
     assert_difference('ChartGroup.count') do
-      post chart_groups_url, params: { chart_group: { chart_group_id: @chart_group.chart_group_id, game_id: @chart_group.game_id, name: @chart_group.name } }, as: :json
+      post chart_groups_url, params: { chart_group: { parent_group_id: @chart_group.parent_group_id, game_id: @chart_group.game_id, name: @chart_group.name } }, as: :json
     end
 
     assert_response 201
@@ -24,12 +24,15 @@ class ChartGroupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update chart_group" do
-    patch chart_group_url(@chart_group), params: { chart_group: { chart_group_id: @chart_group.chart_group_id, game_id: @chart_group.game_id, name: @chart_group.name } }, as: :json
+    patch chart_group_url(@chart_group), params: { chart_group: { parent_group_id: @chart_group.parent_group_id, game_id: @chart_group.game_id, name: @chart_group.name } }, as: :json
     assert_response 200
   end
 
   test "should destroy chart_group" do
     assert_difference('ChartGroup.count', -1) do
+      # To destroy a chart group, need to destroy its charts and child groups
+      # first
+      delete chart_url(charts(:one)), as: :json
       delete chart_group_url(@chart_group), as: :json
     end
 

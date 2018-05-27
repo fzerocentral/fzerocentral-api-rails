@@ -12,7 +12,7 @@ class ChartsControllerTest < ActionDispatch::IntegrationTest
 
   test "should create chart" do
     assert_difference('Chart.count') do
-      post charts_url, params: { chart: { leaf_chart_group_id: @chart.leaf_chart_group_id, name: @chart.name } }, as: :json
+      post charts_url, params: { chart: { chart_group_id: @chart.chart_group_id, name: @chart.name } }, as: :json
     end
 
     assert_response 201
@@ -24,7 +24,7 @@ class ChartsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update chart" do
-    patch chart_url(@chart), params: { chart: { leaf_chart_group_id: @chart.leaf_chart_group_id, name: @chart.name } }, as: :json
+    patch chart_url(@chart), params: { chart: { chart_group_id: @chart.chart_group_id, name: @chart.name } }, as: :json
     assert_response 200
   end
 

@@ -2,8 +2,8 @@
 
 one:
   name: MyString
-  leaf_chart_group: one
+  chart_group: one
 
 two:
   name: MyString
-  leaf_chart_group: two
+  chart_group: two

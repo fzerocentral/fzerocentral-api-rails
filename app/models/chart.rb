@@ -1,3 +1,3 @@
 class Chart < ApplicationRecord
-  belongs_to :leaf_chart_group
+  belongs_to :chart_group
 end

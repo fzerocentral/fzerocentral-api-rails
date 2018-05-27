@@ -3,9 +3,9 @@
 one:
   name: MyString
   game: one
-  chart_group: one
+  parent_group: one
 
 two:
   name: MyString
   game: two
-  chart_group: two
+  parent_group: two

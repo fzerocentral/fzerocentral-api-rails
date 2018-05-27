@@ -46,6 +46,6 @@ class ChartsController < ApplicationController
 
     # Only allow a trusted parameter "white list" through.
     def chart_params
-      params.require(:chart).permit(:name, :leaf_chart_group_id)
+      params.require(:chart).permit(:name, :chart_group_id)
     end
 end

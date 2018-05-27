@@ -10,44 +10,36 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180514083327) do
+ActiveRecord::Schema.define(version: 20180526104439) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
   create_table "chart_groups", force: :cascade do |t|
-    t.string "name"
-    t.bigint "game_id"
-    t.bigint "chart_group_id"
+    t.string "name", null: false
+    t.bigint "game_id", null: false
+    t.bigint "parent_group_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["chart_group_id"], name: "index_chart_groups_on_chart_group_id"
     t.index ["game_id"], name: "index_chart_groups_on_game_id"
+    t.index ["parent_group_id"], name: "index_chart_groups_on_parent_group_id"
   end
 
   create_table "charts", force: :cascade do |t|
-    t.string "name"
-    t.bigint "leaf_chart_group_id"
+    t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["leaf_chart_group_id"], name: "index_charts_on_leaf_chart_group_id"
+    t.bigint "chart_group_id", null: false
+    t.index ["chart_group_id"], name: "index_charts_on_chart_group_id"
   end
 
   create_table "games", force: :cascade do |t|
-    t.string "name"
+    t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "leaf_chart_groups", force: :cascade do |t|
-    t.bigint "chart_group_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["chart_group_id"], name: "index_leaf_chart_groups_on_chart_group_id"
-  end
-
-  add_foreign_key "chart_groups", "chart_groups"
+  add_foreign_key "chart_groups", "chart_groups", column: "parent_group_id"
   add_foreign_key "chart_groups", "games"
-  add_foreign_key "charts", "leaf_chart_groups"
-  add_foreign_key "leaf_chart_groups", "chart_groups"
+  add_foreign_key "charts", "chart_groups"
 end
