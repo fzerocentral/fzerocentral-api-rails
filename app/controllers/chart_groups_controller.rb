@@ -9,8 +9,17 @@ class ChartGroupsController < ApplicationController
   end
 
   # GET /chart_groups/1
+  #
+  # This will include all child groups and charts within this chart group,
+  # so that the chart hierarchy can be listed without needing further queries.
+  # Though, including this without being asked (i.e. without include args)
+  # might be considered non-standard for JSON API.
   def show
-    render json: @chart_group
+    render json: @chart_group,
+           include: 'charts,'\
+                    'child_groups.charts,'\
+                    'child_groups.child_groups.charts,'\
+                    'child_groups.child_groups.child_groups.charts'
   end
 
   # POST /chart_groups
