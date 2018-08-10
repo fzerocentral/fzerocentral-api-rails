@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180806102942) do
+ActiveRecord::Schema.define(version: 20180807091057) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -43,7 +43,27 @@ ActiveRecord::Schema.define(version: 20180806102942) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "records", force: :cascade do |t|
+    t.bigint "value", null: false
+    t.datetime "achieved_at"
+    t.bigint "chart_id"
+    t.bigint "user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chart_id"], name: "index_records_on_chart_id"
+    t.index ["user_id"], name: "index_records_on_user_id"
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.string "username", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["username"], name: "index_users_on_username", unique: true
+  end
+
   add_foreign_key "chart_groups", "chart_groups", column: "parent_group_id"
   add_foreign_key "chart_groups", "games"
   add_foreign_key "charts", "chart_groups"
+  add_foreign_key "records", "charts"
+  add_foreign_key "records", "users"
 end
