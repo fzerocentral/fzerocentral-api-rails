@@ -4,8 +4,10 @@ one:
   name: MyString
   game: one
   parent_group: one
+  order_in_parent: 1
 
 two:
   name: MyString
   game: two
   parent_group: two
+  order_in_parent: 2

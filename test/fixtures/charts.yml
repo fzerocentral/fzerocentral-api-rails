@@ -3,7 +3,9 @@
 one:
   name: MyString
   chart_group: one
+  order_in_group: 1
 
 two:
   name: MyString
   chart_group: two
+  order_in_group: 2
