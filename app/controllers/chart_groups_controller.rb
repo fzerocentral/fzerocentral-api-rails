@@ -5,6 +5,23 @@ class ChartGroupsController < ApplicationController
   def index
     @chart_groups = ChartGroup.all
 
+    # Can filter by game
+    if params.key?(:game_id)
+      @chart_groups = @chart_groups.where(game_id: params[:game_id])
+    end
+
+    # Can filter by parent
+    if params.key?(:parent_group_id)
+      if params[:parent_group_id] == ''
+        # Blank parent means this is a top level group for the
+        # group's game
+        parent_group_id = nil
+      else
+        parent_group_id = params[:parent_group_id]
+      end
+      @chart_groups = @chart_groups.where(parent_group_id: parent_group_id)
+    end
+
     render json: @chart_groups
   end
 
