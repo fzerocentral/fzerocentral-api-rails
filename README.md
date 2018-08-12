@@ -1,8 +1,6 @@
-# F-Zero Central API (test project)
+# fzerocentral-api
 
-Still trying to figure out Ruby on Rails, so this is just a test project for now.
-
-If by chance, this actually ends up being a decent project that we should keep working on to create the actual FZC API, then we can fork this to the fzerocentral group.
+Data API for the (upcoming) F-Zero Central website. Uses Ruby on Rails.
 
 
 ## Installation for development environments
@@ -31,3 +29,10 @@ If by chance, this actually ends up being a decent project that we should keep w
   * `rails db:migrate` (runs the database migrations)
   * `rails server` (runs the server)
 * In a web browser, navigate to the server URL given in the output of `rails server`, and ensure that you get a response.
+
+
+## Very brief overview
+
+Obviously, knowing Ruby on Rails will go a long way towards understanding this codebase. For those not very familiar with Rails, you can at least find the database models at `db/schema.rb`, and the URL/endpoint definitions at `config/routes.rb` (see the [Rails guide on routing](https://guides.rubyonrails.org/routing.html) for details).
+
+Games and Users sit at the top of the database-relationships hierarchy. So, create those first, then create the other objects as allowed by foreign key constraints.
