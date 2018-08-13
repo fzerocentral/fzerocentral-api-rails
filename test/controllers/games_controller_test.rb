@@ -35,6 +35,7 @@ class GamesControllerTest < ActionDispatch::IntegrationTest
       delete record_url(records(:one)), as: :json
       delete chart_url(charts(:one)), as: :json
       delete chart_group_url(chart_groups(:one)), as: :json
+      delete chart_type_url(chart_types(:one)), as: :json
       delete game_url(@game), as: :json
     end
 

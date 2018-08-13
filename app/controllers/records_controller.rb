@@ -3,14 +3,23 @@ class RecordsController < ApplicationController
 
   # GET /records
   def index
+    chart_type = @record
+
     if params.key?(:chart_id)
+
+      chart_type = Chart.find(params[:chart_id]).chart_type
+      if chart_type.order_ascending
+        record_order = :asc
+      else
+        record_order = :desc
+      end
 
       # Show record rankings for a chart.
       all_records = Record\
         # Records in this chart
         .where(chart_id: params[:chart_id])\
         # Lowest first (should make asc vs. desc dependent on Chart Type later)
-        .order(value: :asc)
+        .order(value: record_order)
 
       seen_user_ids = Set.new
       current_rank = 0
@@ -39,43 +48,10 @@ class RecordsController < ApplicationController
         previous_record_count += 1
         previous_value = record.value
       end
+
+      add_record_displays(chart_type.format_spec)
     else
       @records = Record.all
-    end
-
-    # Add additional info to each record.
-
-    # Order of the hashes currently determines both rank (importance of this
-    # number relative to the others) AND position-order in the string.
-    # Currently can't think of any examples where those would be separate.
-    display_spec = [
-      {multiplier: 60, suffix: "'"},
-      {multiplier: 1000, suffix: '"', digits: 2},
-      {digits: 3},
-    ]
-    total_multiplier = 1
-    display_spec.reverse.each do |spec_item|
-      total_multiplier = total_multiplier * spec_item.fetch(:multiplier, 1)
-      spec_item[:total_multiplier] = total_multiplier
-    end
-
-    @records.each do |record|
-      remaining_value = record.value
-      value_display = ""
-      display_spec.each do |spec_item|
-        item_value = remaining_value / spec_item[:total_multiplier]
-        remaining_value = remaining_value % spec_item[:total_multiplier]
-
-        number_format = '%'
-        if spec_item.key?(:digits)
-          number_format += '0' + spec_item[:digits].to_s
-        end
-        number_format += 'd'
-
-        value_display += \
-          (number_format % item_value) + spec_item.fetch(:suffix, '')
-      end
-      record.value_display = value_display
     end
 
     render json: @records
@@ -120,5 +96,39 @@ class RecordsController < ApplicationController
     # Only allow a trusted parameter "white list" through.
     def record_params
       params.require(:record).permit(:value, :achieved_at, :chart_id, :user_id)
+    end
+
+    def add_record_displays(format_spec)
+      # format_spec is a list of hashes.
+      # Order of the hashes determines both rank (importance of this
+      # number relative to the others) AND position-order in the string.
+      # Can't think of any examples where those would need to be different.
+      #
+      # Since format_spec is loaded from JSON, the hash keys are strings like
+      # 'multiplier', not colon identifiers like :multiplier.
+      total_multiplier = 1
+      format_spec.reverse.each do |spec_item|
+        total_multiplier = total_multiplier * spec_item.fetch('multiplier', 1)
+        spec_item['total_multiplier'] = total_multiplier
+      end
+
+      @records.each do |record|
+        remaining_value = record.value
+        value_display = ""
+        format_spec.each do |spec_item|
+          item_value = remaining_value / spec_item['total_multiplier']
+          remaining_value = remaining_value % spec_item['total_multiplier']
+
+          number_format = '%'
+          if spec_item.key?('digits')
+            number_format += '0' + spec_item['digits'].to_s
+          end
+          number_format += 'd'
+
+          value_display += \
+            (number_format % item_value) + spec_item.fetch('suffix', '')
+        end
+        record.value_display = value_display
+      end
     end
 end

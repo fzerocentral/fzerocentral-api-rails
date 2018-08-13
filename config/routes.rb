@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  resources :chart_types
   resources :charts
   resources :chart_groups
   resources :games

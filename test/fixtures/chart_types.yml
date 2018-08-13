@@ -2,12 +2,12 @@
 
 one:
   name: MyString
-  chart_group: one
-  chart_type: one
-  order_in_group: 1
+  format_spec: '[{}]'
+  order_ascending: false
+  game: one
 
 two:
   name: MyString
-  chart_group: two
-  chart_type: two
-  order_in_group: 2
+  format_spec: '[{}]'
+  order_ascending: false
+  game: two

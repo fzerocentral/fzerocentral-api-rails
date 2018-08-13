@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180807091057) do
+ActiveRecord::Schema.define(version: 2018_08_13_011253) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -27,14 +27,26 @@ ActiveRecord::Schema.define(version: 20180807091057) do
     t.index ["parent_group_id"], name: "index_chart_groups_on_parent_group_id"
   end
 
+  create_table "chart_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.json "format_spec", null: false
+    t.boolean "order_ascending", null: false
+    t.bigint "game_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_id"], name: "index_chart_types_on_game_id"
+  end
+
   create_table "charts", force: :cascade do |t|
     t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "chart_group_id", null: false
     t.integer "order_in_group", null: false
+    t.bigint "chart_type_id", null: false
     t.index ["chart_group_id", "order_in_group"], name: "index_charts_on_chart_group_id_and_order_in_group", unique: true
     t.index ["chart_group_id"], name: "index_charts_on_chart_group_id"
+    t.index ["chart_type_id"], name: "index_charts_on_chart_type_id"
   end
 
   create_table "games", force: :cascade do |t|
@@ -63,7 +75,9 @@ ActiveRecord::Schema.define(version: 20180807091057) do
 
   add_foreign_key "chart_groups", "chart_groups", column: "parent_group_id"
   add_foreign_key "chart_groups", "games"
+  add_foreign_key "chart_types", "games"
   add_foreign_key "charts", "chart_groups"
+  add_foreign_key "charts", "chart_types"
   add_foreign_key "records", "charts"
   add_foreign_key "records", "users"
 end
