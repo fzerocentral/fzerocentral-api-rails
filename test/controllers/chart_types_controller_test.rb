@@ -2,7 +2,12 @@ require 'test_helper'
 
 class ChartTypesControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @chart_type = chart_types(:one)
+    @game = Game.new(name: "Game 1")
+    @game.save
+    @game_2 = Game.new(name: "Game 2")
+    @game_2.save
+    @chart_type = ChartType.new(name: "Score", format_spec: '[{}]', order_ascending: false, game: @game)
+    @chart_type.save
   end
 
   test "should get index" do
@@ -12,7 +17,12 @@ class ChartTypesControllerTest < ActionDispatch::IntegrationTest
 
   test "should create chart_type" do
     assert_difference('ChartType.count') do
-      post chart_types_url, params: { chart_type: { format_spec: @chart_type.format_spec, game_id: @chart_type.game_id, name: @chart_type.name, order_ascending: @chart_type.order_ascending } }, as: :json
+      post chart_types_url, params: { chart_type: {
+        name: "Meters",
+        format_spec: '[{"suffix": "m"}]',
+        order_ascending: false,
+        game_id: @game.id,
+      } }, as: :json
     end
 
     assert_response 201
@@ -24,14 +34,17 @@ class ChartTypesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update chart_type" do
-    patch chart_type_url(@chart_type), params: { chart_type: { format_spec: @chart_type.format_spec, game_id: @chart_type.game_id, name: @chart_type.name, order_ascending: @chart_type.order_ascending } }, as: :json
+    patch chart_type_url(@chart_type), params: { chart_type: {
+        name: "Time",
+        format_spec: '[{"multiplier": 60, "suffix": ":"}, {"digits": 2}]',
+        order_ascending: true,
+        game_id: @game_2.id,
+      } }, as: :json
     assert_response 200
   end
 
   test "should destroy chart_type" do
     assert_difference('ChartType.count', -1) do
-      delete record_url(records(:one)), as: :json
-      delete chart_url(charts(:one)), as: :json
       delete chart_type_url(@chart_type), as: :json
     end
 

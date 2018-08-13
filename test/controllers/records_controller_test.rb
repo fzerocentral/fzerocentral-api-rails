@@ -2,7 +2,22 @@ require 'test_helper'
 
 class RecordsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @record = records(:one)
+    @user = User.new(username: "User 1")
+    @user.save
+    @user_2 = User.new(username: "User 2")
+    @user_2.save
+    @game = Game.new(name: "Game 1")
+    @game.save
+    @chart_type = ChartType.new(name: "Score", format_spec: '[{}]', order_ascending: false, game: @game)
+    @chart_type.save
+    @chart_group = ChartGroup.new(name: "Group 1", parent_group: nil, order_in_parent: 1, game: @game)
+    @chart_group.save
+    @chart = Chart.new(name: "Chart 1", chart_type: @chart_type, chart_group: @chart_group, order_in_group: 1)
+    @chart.save
+    @chart_2 = Chart.new(name: "Chart 2", chart_type: @chart_type, chart_group: @chart_group, order_in_group: 2)
+    @chart_2.save
+    @record = Record.new(value: 1234, chart: @chart, user: @user)
+    @record.save
   end
 
   test "should get index" do
@@ -12,7 +27,11 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
 
   test "should create record" do
     assert_difference('Record.count') do
-      post records_url, params: { record: { value: @record.value, chart_id: @record.chart_id, user_id: @record.user_id } }, as: :json
+      post records_url, params: { record: {
+        value: 1408,
+        chart_id: @chart.id,
+        user_id: @user.id,
+      } }, as: :json
     end
 
     assert_response 201
@@ -24,7 +43,11 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update record" do
-    patch record_url(@record), params: { record: { value: @record.value, chart_id: @record.chart_id, user_id: @record.user_id } }, as: :json
+    patch record_url(@record), params: { record: {
+        value: 1408,
+        chart_id: @chart_2.id,
+        user_id: @user_2.id,
+      } }, as: :json
     assert_response 200
   end
 

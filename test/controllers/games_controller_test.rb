@@ -2,7 +2,8 @@ require 'test_helper'
 
 class GamesControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @game = games(:one)
+    @game = Game.new(name: "Game 1")
+    @game.save
   end
 
   test "should get index" do
@@ -12,7 +13,7 @@ class GamesControllerTest < ActionDispatch::IntegrationTest
 
   test "should create game" do
     assert_difference('Game.count') do
-      post games_url, params: { game: { name: @game.name } }, as: :json
+      post games_url, params: { game: { name: "Game 2" } }, as: :json
     end
 
     assert_response 201
@@ -24,18 +25,12 @@ class GamesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update game" do
-    patch game_url(@game), params: { game: { name: @game.name } }, as: :json
+    patch game_url(@game), params: { game: { name: "Game 2" } }, as: :json
     assert_response 200
   end
 
   test "should destroy game" do
     assert_difference('Game.count', -1) do
-      # To destroy a game, need to destroy its chart groups first, and the
-      # charts of those CGs
-      delete record_url(records(:one)), as: :json
-      delete chart_url(charts(:one)), as: :json
-      delete chart_group_url(chart_groups(:one)), as: :json
-      delete chart_type_url(chart_types(:one)), as: :json
       delete game_url(@game), as: :json
     end
 

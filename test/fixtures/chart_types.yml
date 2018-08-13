@@ -1,13 +1,19 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
-one:
-  name: MyString
-  format_spec: '[{}]'
-  order_ascending: false
-  game: one
+fz_time:
+  name: Time
+  # '' is the escape sequence for '
+  format_spec: '[{"multiplier": 60, "suffix": "''"}, {"multiplier": 100, "suffix": ''"'', "digits": 2}, {"digits": 2}]'
+  order_ascending: true
+  game: fz
 
-two:
-  name: MyString
-  format_spec: '[{}]'
+gx_time:
+  name: Time
+  format_spec: '[{"multiplier": 60, "suffix": "''"}, {"multiplier": 1000, "suffix": ''"'', "digits": 2}, {"digits": 3}]'
+  order_ascending: true
+  game: gx
+gx_speed:
+  name: Speed
+  format_spec: '[{"suffix": "km/h"}]'
   order_ascending: false
-  game: two
+  game: gx

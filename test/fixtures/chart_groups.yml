@@ -1,13 +1,28 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
-one:
-  name: MyString
-  game: one
-  parent_group: one
+knight:
+  name: Knight League
+  game: fz
+  parent_group:
+  order_in_parent: 1
+fz_mc1:
+  name: Knight League
+  game: fz
+  parent_group: knight
   order_in_parent: 1
 
-two:
-  name: MyString
-  game: two
-  parent_group: two
-  order_in_parent: 2
+gx_cups:
+  name: Cups
+  game: gx
+  parent_group:
+  order_in_parent: 1
+ruby:
+  name: Ruby Cup
+  game: gx
+  parent_group: gx_cups
+  order_in_parent: 1
+mctr:
+  name: "Mute City: Twist Road"
+  game: gx
+  parent_group: ruby
+  order_in_parent: 1
