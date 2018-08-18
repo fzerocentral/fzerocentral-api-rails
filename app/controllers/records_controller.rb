@@ -3,53 +3,10 @@ class RecordsController < ApplicationController
 
   # GET /records
   def index
-    chart_type = @record
-
     if params.key?(:chart_id)
-
-      chart_type = Chart.find(params[:chart_id]).chart_type
-      if chart_type.order_ascending
-        record_order = :asc
-      else
-        record_order = :desc
-      end
-
-      # Show record rankings for a chart.
-      all_records = Record\
-        # Records in this chart
-        .where(chart_id: params[:chart_id])\
-        # Lowest first (should make asc vs. desc dependent on Chart Type later)
-        .order(value: record_order)
-
-      seen_user_ids = Set.new
-      current_rank = 0
-      previous_record_count = 0
-      previous_value = nil
-      @records = []
-
-      all_records.each do |record|
-        # Keep only the best record from each user. They are already sorted from
-        # best to worst at this point, so we grab the first one for each user.
-        #
-        # Ideally the database would do this filtering for us, but DISTINCT ON
-        # doesn't seem to be flexible enough... (could be wrong about that)
-        if seen_user_ids.include?(record.user_id)
-          next
-        end
-
-        if record.value != previous_value
-          # Not a tie with the previous record
-          current_rank = previous_record_count + 1
-        end
-        record.rank = current_rank
-        @records.push(record)
-
-        seen_user_ids.add(record.user_id)
-        previous_record_count += 1
-        previous_value = record.value
-      end
-
-      add_record_displays(chart_type.format_spec)
+      chart =  Chart.find(params[:chart_id])
+      @records = get_ranked_records(chart)
+      add_record_displays(@records, chart.chart_type.format_spec)
     else
       @records = Record.all
     end
@@ -98,8 +55,57 @@ class RecordsController < ApplicationController
       params.require(:record).permit(:value, :achieved_at, :chart_id, :user_id)
     end
 
-    def add_record_displays(format_spec)
-      # format_spec is a list of hashes.
+    def get_record_order_direction(chart_type)
+      if chart_type.order_ascending
+        return :asc
+      else
+        return :desc
+      end
+    end
+
+    def get_ranked_records(chart, add_rank_attr = true)
+      order_direction = get_record_order_direction(chart.chart_type)
+      all_records = Record\
+        # Records in this chart
+        .where(chart_id: chart.id)\
+        # Order by record value
+        .order(value: order_direction)
+
+      seen_user_ids = Set.new
+      current_rank = 0
+      previous_record_count = 0
+      previous_value = nil
+      ranked_records = []
+
+      all_records.each do |record|
+        # Keep only the best record from each user. They are already sorted
+        # from best to worst at this point, so we grab the first one for each
+        # user.
+        #
+        # Ideally the database would do this filtering for us, but DISTINCT ON
+        # doesn't seem to be flexible enough... (could be wrong about that)
+        if seen_user_ids.include?(record.user_id)
+          next
+        end
+
+        if add_rank_attr
+          if record.value != previous_value
+            # Not a tie with the previous record
+            current_rank = previous_record_count + 1
+          end
+          record.rank = current_rank
+          previous_record_count += 1
+          previous_value = record.value
+        end
+
+        ranked_records.push(record)
+        seen_user_ids.add(record.user_id)
+      end
+
+      return ranked_records
+    end
+
+    def add_record_displays(records, format_spec)
       # Order of the hashes determines both rank (importance of this
       # number relative to the others) AND position-order in the string.
       # Can't think of any examples where those would need to be different.
@@ -112,7 +118,7 @@ class RecordsController < ApplicationController
         spec_item['total_multiplier'] = total_multiplier
       end
 
-      @records.each do |record|
+      records.each do |record|
         remaining_value = record.value
         value_display = ""
         format_spec.each do |spec_item|
