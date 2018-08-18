@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2018_08_13_011253) do
+ActiveRecord::Schema.define(version: 2018_08_13_094520) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -22,6 +22,7 @@ ActiveRecord::Schema.define(version: 2018_08_13_011253) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "order_in_parent", null: false
+    t.boolean "show_charts_together"
     t.index ["game_id"], name: "index_chart_groups_on_game_id"
     t.index ["parent_group_id", "order_in_parent"], name: "index_chart_groups_on_parent_group_id_and_order_in_parent", unique: true
     t.index ["parent_group_id"], name: "index_chart_groups_on_parent_group_id"
