@@ -19,7 +19,11 @@ class ChartGroupsController < ApplicationController
       else
         parent_group_id = params[:parent_group_id]
       end
-      @chart_groups = @chart_groups.where(parent_group_id: parent_group_id)
+      
+      # Filter by parent, and return the child groups in order
+      @chart_groups = @chart_groups\
+        .where(parent_group_id: parent_group_id)\
+        .order('order_in_parent ASC')
     end
 
     render json: @chart_groups
