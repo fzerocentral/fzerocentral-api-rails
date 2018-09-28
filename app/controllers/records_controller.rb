@@ -3,13 +3,39 @@ class RecordsController < ApplicationController
 
   # GET /records
   def index
+    @records = Record.all
+    chart = nil
+
     if params.key?(:chart_id)
+      @records = @records.where(chart_id: params[:chart_id])
       chart =  Chart.find(params[:chart_id])
-      @records = get_ranked_records(chart)
-      add_record_displays(@records, chart.chart_type.format_spec)
-    else
-      @records = Record.all
     end
+    if params.key?(:user_id)
+      @records = @records.where(user_id: params[:user_id])
+    end
+
+    sort_method = params.fetch(:sort, 'date')
+    if sort_method == 'date'
+      # Latest date first
+      @records = @records.order(achieved_at: :desc)
+    elsif sort_method == 'value'
+      # Best value first
+      if chart
+        @records = @records.order(
+          value: get_chart_order_direction(chart.chart_type))
+      else
+        # Ordering by value across charts is weird, but we'll allow it,
+        # defaulting to ascending
+        @records = @records.order(value: :asc)
+      end
+    end
+
+    if params.key?(:ranked_entity)
+      @records = create_ranking(@records, params[:ranked_entity])
+    end
+
+    # Add human-readable strings of the record values
+    add_record_displays(@records)
 
     render json: @records
   end
@@ -55,7 +81,7 @@ class RecordsController < ApplicationController
       params.require(:record).permit(:value, :achieved_at, :chart_id, :user_id)
     end
 
-    def get_record_order_direction(chart_type)
+    def get_chart_order_direction(chart_type)
       if chart_type.order_ascending
         return :asc
       else
@@ -63,62 +89,70 @@ class RecordsController < ApplicationController
       end
     end
 
-    def get_ranked_records(chart, add_rank_attr = true)
-      order_direction = get_record_order_direction(chart.chart_type)
-      all_records = Record\
-        # Records in this chart
-        .where(chart_id: chart.id)\
-        # Order by record value
-        .order(value: order_direction)
-
-      seen_user_ids = Set.new
+    def create_ranking(unranked_records, ranked_entity)
+      # Keep only the first record from each ranked_entity ('user' or 'chart'),
+      # and assign rank numbers to the remaining records, accounting for
+      # tied values.
+      # unranked_records should already be sorted as desired.
+      seen_entities = Set.new
       current_rank = 0
       previous_record_count = 0
       previous_value = nil
       ranked_records = []
 
-      all_records.each do |record|
-        # Keep only the best record from each user. They are already sorted
-        # from best to worst at this point, so we grab the first one for each
-        # user.
+      unranked_records.each do |record|
+        # Keep only the best record from each entity. They are already sorted
+        # in the desired order at this point (e.g. best to worst values), and
+        # from here we grab the first one for each user.
         #
         # Ideally the database would do this filtering for us, but DISTINCT ON
         # doesn't seem to be flexible enough... (could be wrong about that)
-        if seen_user_ids.include?(record.user_id)
+        if ranked_entity == 'user'
+          this_record_entity = record.user_id
+        elsif ranked_entity == 'chart'
+          this_record_entity = record.chart_id
+        end
+
+        if seen_entities.include?(this_record_entity)
+          # Not the first record from this entity. Ignore.
           next
         end
 
-        if add_rank_attr
-          if record.value != previous_value
-            # Not a tie with the previous record
-            current_rank = previous_record_count + 1
-          end
-          record.rank = current_rank
-          previous_record_count += 1
-          previous_value = record.value
+        if record.value != previous_value
+          # Not a tie with the previous record
+          current_rank = previous_record_count + 1
         end
+        record.rank = current_rank
+        previous_record_count += 1
+        previous_value = record.value
 
         ranked_records.push(record)
-        seen_user_ids.add(record.user_id)
+        seen_entities.add(this_record_entity)
       end
 
       return ranked_records
     end
 
-    def add_record_displays(records, format_spec)
-      # Order of the hashes determines both rank (importance of this
-      # number relative to the others) AND position-order in the string.
-      # Can't think of any examples where those would need to be different.
-      #
-      # Since format_spec is loaded from JSON, the hash keys are strings like
-      # 'multiplier', not colon identifiers like :multiplier.
-      total_multiplier = 1
-      format_spec.reverse.each do |spec_item|
-        total_multiplier = total_multiplier * spec_item.fetch('multiplier', 1)
-        spec_item['total_multiplier'] = total_multiplier
-      end
+    def add_record_displays(records)
+      # Add value_display attribute to each record. This attribute is the
+      # human-readable string of the record value, such as 1'23"456 instead of
+      # 123456.
+      # Modifies records in-place.
 
       records.each do |record|
+        # Order of the hashes determines both rank (importance of this
+        # number relative to the others) AND position-order in the string.
+        # Can't think of any examples where those would need to be different.
+        #
+        # Since format_spec is loaded from JSON, the hash keys are strings like
+        # 'multiplier', not colon identifiers like :multiplier.
+        format_spec = record.chart.chart_type.format_spec
+        total_multiplier = 1
+        format_spec.reverse.each do |spec_item|
+          total_multiplier = total_multiplier * spec_item.fetch('multiplier', 1)
+          spec_item['total_multiplier'] = total_multiplier
+        end
+
         remaining_value = record.value
         value_display = ""
         format_spec.each do |spec_item|
