@@ -14,24 +14,68 @@ class RecordsController < ApplicationController
       @records = @records.where(user_id: params[:user_id])
     end
 
-    sort_method = params.fetch(:sort, 'date')
-    if sort_method == 'date'
-      # Latest date first
-      @records = @records.order(achieved_at: :desc)
+    sort_method = params.fetch(:sort, 'date_submitted')
+    if sort_method == 'date_submitted'
+      # Latest date first. Date granularity is limited, so ties are possible.
+      # Therefore we do a secondary ordering by record ID, which makes the
+      # order repeatable, and also orders by creation time in most cases.
+      @records = @records.order(created_at: :desc, id: :desc)
+    elsif sort_method == 'date_achieved'
+      # Latest date first. The secondary ordering by record ID makes the
+      # result order repeatable.
+      @records = @records.order(achieved_at: :desc, id: :desc)
     elsif sort_method == 'value'
       # Best value first
       if chart
-        @records = @records.order(
-          value: get_chart_order_direction(chart.chart_type))
+        value_order_direction = get_chart_order_direction(chart.chart_type)
+      elsif @records.length > 0
+        # Ordering by value across charts assumes all of these charts use the
+        # same order. So we'll just take the order of any record's chart.
+        value_order_direction = get_chart_order_direction(@records[0].chart.chart_type)
       else
-        # Ordering by value across charts is weird, but we'll allow it,
-        # defaulting to ascending
-        @records = @records.order(value: :asc)
+        # We don't even have any records to get a chart from. Well, if there
+        # are no records, the order doesn't matter anyway, so we arbitrarily
+        # pick asc.
+        value_order_direction = :asc
       end
+      # Tiebreak by earliest achieved, followed by earliest submitted
+      @records = @records.order(value: value_order_direction, achieved_at: :asc, id: :asc)
+    else
+      render_json_error("Unrecognized sort method: #{sort_method}", :bad_request)
+      return
     end
 
-    if params.key?(:ranked_entity)
-      @records = create_ranking(@records, params[:ranked_entity])
+    ranked_entity = params.fetch(:ranked_entity, nil)
+    if ranked_entity != nil
+      if ranked_entity == 'user'
+        get_ranked_entity = ->(record) { record.user.id }
+      elsif ranked_entity == 'chart'
+        get_ranked_entity = ->(record) { record.chart.id }
+      else
+        render_json_error("Unrecognized ranked_entity option: #{ranked_entity}", :bad_request)
+        return
+      end
+      @records = create_ranking(@records, get_ranked_entity)
+    end
+
+    # What to do with improvements among the set of records over time:
+    # flag which ones are improvements or not, or filter out the
+    # non-improvements.
+    # Used for a user's PB history, or WR history.
+    improvements_option = params.fetch(:improvements, nil)
+    not_sorting_by_date = !sort_method.include?('date')
+    if improvements_option != nil and (not_sorting_by_date or chart == nil)
+      render_json_error("To use the 'improvements' option, you must sort by date, and you must specify a chart_id.", :bad_request)
+      return
+    end
+
+    if improvements_option == 'flag'
+      flag_improvements(@records, chart.chart_type)
+    elsif improvements_option == 'filter'
+      @records = filter_to_improvements_only(@records, chart.chart_type)
+    elsif improvements_option != nil
+      render_json_error("Unrecognized improvements option: #{improvements_option}", :bad_request)
+      return
     end
 
     # Add human-readable strings of the record values
@@ -89,8 +133,21 @@ class RecordsController < ApplicationController
       end
     end
 
-    def create_ranking(unranked_records, ranked_entity)
-      # Keep only the first record from each ranked_entity ('user' or 'chart'),
+    # If value is a better record than best_so_far, return true. If worse
+    # or tied, return false. "better"/"worse" is determined by the chart_type.
+    def record_is_improvement(value, best_so_far, chart_type)
+      if best_so_far == nil
+        return true
+      elsif chart_type.order_ascending
+        return value < best_so_far
+      else
+        # Descending
+        return value > best_so_far
+      end
+    end
+
+    def create_ranking(unranked_records, get_ranked_entity)
+      # Keep only the first record from each ranked_entity (e.g. each user),
       # and assign rank numbers to the remaining records, accounting for
       # tied values.
       # unranked_records should already be sorted as desired.
@@ -107,12 +164,7 @@ class RecordsController < ApplicationController
         #
         # Ideally the database would do this filtering for us, but DISTINCT ON
         # doesn't seem to be flexible enough... (could be wrong about that)
-        if ranked_entity == 'user'
-          this_record_entity = record.user_id
-        elsif ranked_entity == 'chart'
-          this_record_entity = record.chart_id
-        end
-
+        this_record_entity = get_ranked_entity.call(record)
         if seen_entities.include?(this_record_entity)
           # Not the first record from this entity. Ignore.
           next
@@ -131,6 +183,37 @@ class RecordsController < ApplicationController
       end
 
       return ranked_records
+    end
+
+    def flag_improvements(records, chart_type)
+      # At this point we know the records are sorted from latest date first.
+      # Iterate in reverse, from earliest date first, and figure out which
+      # records are improvements over all previous records.
+      # Flag each record as an improvement or not.
+      best_so_far = nil
+      records.reverse_each do |record|
+        if record_is_improvement(record.value, best_so_far, chart_type)
+          best_so_far = record.value
+          record.is_improvement = true
+        else
+          record.is_improvement = false
+        end
+      end
+    end
+
+    def filter_to_improvements_only(records, chart_type)
+      improvements_only = []
+      best_so_far = nil
+      # While looking for improvements, iterate from earliest date first.
+      records.reverse_each do |record|
+        if record_is_improvement(record.value, best_so_far, chart_type)
+          best_so_far = record.value
+          # Add to array start, to construct an array which starts from
+          # latest date first.
+          improvements_only.unshift(record)
+        end
+      end
+      return improvements_only
     end
 
     def add_record_displays(records)
@@ -170,5 +253,12 @@ class RecordsController < ApplicationController
         end
         record.value_display = value_display
       end
+    end
+
+    # Render an error, following the JSON API standard.
+    def render_json_error(message, status)
+      render(
+        json: {errors: [{detail: message}]},
+        status: status)
     end
 end
