@@ -2,18 +2,12 @@ require 'test_helper'
 
 class ChartsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @game = Game.new(name: "Game 1")
-    @game.save
-    @chart_type = ChartType.new(name: "Score", format_spec: '[{}]', order_ascending: false, game: @game)
-    @chart_type.save
-    @chart_type_2 = ChartType.new(name: "Meters", format_spec: '[{"suffix": "m"}]', order_ascending: false, game: @game)
-    @chart_type_2.save
-    @chart_group = ChartGroup.new(name: "Group 1", parent_group: nil, order_in_parent: 1, game: @game)
-    @chart_group.save
-    @chart_group_2 = ChartGroup.new(name: "Group 2", parent_group: nil, order_in_parent: 2, game: @game)
-    @chart_group_2.save
-    @chart = Chart.new(name: "Chart 1", chart_type: @chart_type, chart_group: @chart_group, order_in_group: 1)
-    @chart.save
+    @game = games(:one)
+    @chart_type = chart_types(:score)
+    @chart_type_2 = chart_types(:centi_time)
+    @chart_group = ChartGroup.create(name: "Group 1", parent_group: nil, order_in_parent: 1, game: @game)
+    @chart_group_2 = ChartGroup.create(name: "Group 2", parent_group: nil, order_in_parent: 2, game: @game)
+    @chart = Chart.create(name: "Chart 1", chart_type: @chart_type, chart_group: @chart_group, order_in_group: 1)
   end
 
   test "should get index" do

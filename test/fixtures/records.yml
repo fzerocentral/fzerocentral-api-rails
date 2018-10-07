@@ -1,11 +1,1 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
-
-one:
-  value: 12302
-  chart: mc1_course
-  user: falcon
-
-two:
-  value: 14241
-  chart: mctr_lap
-  user: jody

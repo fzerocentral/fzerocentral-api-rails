@@ -1,18 +1,1 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
-
-mc1_course:
-  name: Course Time
-  chart_group: mc1
-  chart_type: fz_time
-  order_in_group: 1
-
-mctr_lap:
-  name: Lap Time
-  chart_group: mctr
-  chart_type: gx_time
-  order_in_group: 2
-mctr_speed:
-  name: Speed
-  chart_group: mctr
-  chart_type: gx_speed
-  order_in_group: 3

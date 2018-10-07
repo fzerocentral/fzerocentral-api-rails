@@ -1,7 +1,13 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
-falcon:
-  username: Captain Falcon
+one:
+  username: User 1
 
-jody:
-  username: Jody Summer
+two:
+  username: User 2
+
+three:
+  username: User 3
+
+four:
+  username: User 4

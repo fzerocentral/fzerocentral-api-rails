@@ -2,12 +2,8 @@ require 'test_helper'
 
 class ChartTypesControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @game = Game.new(name: "Game 1")
-    @game.save
-    @game_2 = Game.new(name: "Game 2")
-    @game_2.save
-    @chart_type = ChartType.new(name: "Score", format_spec: '[{}]', order_ascending: false, game: @game)
-    @chart_type.save
+    @game = games(:one)
+    @chart_type = chart_types(:score)
   end
 
   test "should get index" do
@@ -35,10 +31,10 @@ class ChartTypesControllerTest < ActionDispatch::IntegrationTest
 
   test "should update chart_type" do
     patch chart_type_url(@chart_type), params: { chart_type: {
-        name: "Time",
-        format_spec: '[{"multiplier": 60, "suffix": ":"}, {"digits": 2}]',
+        name: "Centisecond Time with colon and dot",
+        format_spec: [{"multiplier": 60, "suffix": ":"}, {"multiplier": 100, "suffix": '.', "digits": 2}, {"digits": 2}],
         order_ascending: true,
-        game_id: @game_2.id,
+        game_id: games(:two).id,
       } }, as: :json
     assert_response 200
   end

@@ -1,19 +1,22 @@
 # Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
-fz_time:
-  name: Time
-  # '' is the escape sequence for '
-  format_spec: '[{"multiplier": 60, "suffix": "''"}, {"multiplier": 100, "suffix": ''"'', "digits": 2}, {"digits": 2}]'
+centi_time:
+  name: Centisecond Time
+  format_spec: [{"multiplier": 60, "suffix": "'"}, {"multiplier": 100, "suffix": '"', "digits": 2}, {"digits": 2}]
   order_ascending: true
-  game: fz
-
-gx_time:
-  name: Time
-  format_spec: '[{"multiplier": 60, "suffix": "''"}, {"multiplier": 1000, "suffix": ''"'', "digits": 2}, {"digits": 3}]'
+  game: one
+milli_time:
+  name: Millisecond Time
+  format_spec: [{"multiplier": 60, "suffix": "'"}, {"multiplier": 1000, "suffix": '"', "digits": 2}, {"digits": 3}]
   order_ascending: true
-  game: gx
-gx_speed:
-  name: Speed
-  format_spec: '[{"suffix": "km/h"}]'
+  game: one
+score:
+  name: Score
+  format_spec: [{}]
   order_ascending: false
-  game: gx
+  game: one
+kmh:
+  name: Km/h Speed
+  format_spec: [{"suffix": "km/h"}]
+  order_ascending: false
+  game: one
