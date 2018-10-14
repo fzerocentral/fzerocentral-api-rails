@@ -390,12 +390,19 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
 
   test "should create record" do
     assert_difference('Record.count') do
-      post records_url, params: { record: {
-        value: 10,
-        chart_id: @chart_1.id,
-        user_id: @user_1.id,
-        achieved_at: DateTime.now(),
-      } }, as: :json
+      post records_url, params: {
+        data: {
+          attributes: {
+            value: 10,
+            'achieved-at': DateTime.now(),
+          },
+          relationships: {
+            chart: { data: { type: 'charts', id: @chart_1.id } },
+            user: { data: { type: 'users', id: @user_1.id } },
+          },
+          type: 'records',
+        },
+      }, as: :json
     end
 
     assert_response 201

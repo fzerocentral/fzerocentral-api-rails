@@ -122,7 +122,14 @@ class RecordsController < ApplicationController
 
     # Only allow a trusted parameter "white list" through.
     def record_params
-      params.require(:record).permit(:value, :achieved_at, :chart_id, :user_id)
+      ActiveModelSerializers::Deserialization.jsonapi_parse(
+        params,
+        # Strong parameters. `only` is applied before `key_transform`, so we
+        # must specify `'achieved-at'` instead of `:achieved_at`.
+        only: [:value, 'achieved-at', :chart, :user],
+        # This transforms kebab-case attributes from the JSON API request to
+        # snake_case.
+        key_transform: :underscore)
     end
 
     def get_chart_order_direction(chart_type)
