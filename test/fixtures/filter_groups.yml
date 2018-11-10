@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: Filter Group 1
+  description: Description for Filter Group 1 goes here
+  kind: select
+
+two:
+  name: Filter Group 2
+  description: Description for Filter Group 2 goes here
+  kind: select

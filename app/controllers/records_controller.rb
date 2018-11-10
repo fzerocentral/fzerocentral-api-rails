@@ -13,6 +13,14 @@ class RecordsController < ApplicationController
     if params.key?(:user_id)
       @records = @records.where(user_id: params[:user_id])
     end
+    if params.key?(:filters)
+      @records = apply_filter_spec(@records, params[:filters])
+      if @records.nil?
+        # apply_filter_spec() should've already rendered a JSON error, so
+        # we just return
+        return
+      end
+    end
 
     sort_method = params.fetch(:sort, 'date_submitted')
     if sort_method == 'date_submitted'
@@ -81,12 +89,16 @@ class RecordsController < ApplicationController
     # Add human-readable strings of the record values
     add_record_displays(@records)
 
-    render json: @records
+    render json: @records,
+           include: 'filters'
   end
 
   # GET /records/1
   def show
-    render json: @record
+    add_record_displays([@record])
+
+    render json: @record,
+           include: 'filters'
   end
 
   # POST /records
@@ -126,10 +138,76 @@ class RecordsController < ApplicationController
         params,
         # Strong parameters. `only` is applied before `key_transform`, so we
         # must specify `'achieved-at'` instead of `:achieved_at`.
-        only: [:value, 'achieved-at', :chart, :user],
+        only: [:value, 'achieved-at', :chart, :user, :filters],
         # This transforms kebab-case attributes from the JSON API request to
         # snake_case.
         key_transform: :underscore)
+    end
+
+    def apply_filter_spec(records, filter_spec_str)
+      # filter_spec_str looks something like '1-4n-9ge-11-24le'.
+      # Dash-separated tokens, with each token having a filter ID number and
+      # possibly a suffix indicating how to apply the filter.
+      filter_spec_item_strs = filter_spec_str.split('-')
+
+      filter_spec_item_strs.each_with_index do |item_str, item_index|
+        regex_match = /([[:digit:]]+)([[:alpha:]]*)/.match(item_str)
+        if regex_match.nil?
+          render_json_error("Could not parse filter spec: #{filter_spec_str}", :bad_request)
+          return nil
+        end
+        filter_id = regex_match[1]
+        type_suffix = regex_match[2]
+
+        # We need to join on record_filters and filters once per filter
+        # spec item. So we give distinct table aliases for each join.
+        #
+        # The following is the arel equivalent of:
+        # INNER JOIN record_filters rf#{item_index}
+        # ON rf#{item_index}.record_id = records.id
+        # INNER JOIN filters f#{item_index}
+        # ON rf#{item_index}.filter_id = f#{item_index}.id
+        arel_r = Record.arel_table
+        arel_f = Filter.arel_table.alias("f#{item_index}")
+        arel_rf = RecordFilter.arel_table.alias("rf#{item_index}")
+        arel_on1 = arel_rf.create_on(arel_rf[:record_id].eq(arel_r[:id]))
+        arel_join1 = arel_rf.create_join(
+          arel_rf, arel_on1, Arel::Nodes::InnerJoin)
+        arel_on2 = arel_rf.create_on(arel_rf[:filter_id].eq(arel_f[:id]))
+        arel_join2 = arel_f.create_join(
+          arel_f, arel_on2, Arel::Nodes::InnerJoin)
+        records = records.joins(arel_join1).joins(arel_join2)
+
+        if type_suffix == ''
+          # No suffix; simple test for filter presence
+          records = records
+            .where("f#{item_index}": {id: filter_id})
+        elsif type_suffix == 'n'
+          # Negation. Records must have a filter in the same group which isn't
+          # the specified filter.
+          f = Filter.find(filter_id)
+          records = records
+            .where("f#{item_index}": {filter_group_id: f.filter_group_id})\
+            .where.not("f#{item_index}": {id: filter_id})
+        elsif type_suffix == 'le'
+          # Less than or equal to, for numeric filters.
+          f = Filter.find(filter_id)
+          records = records
+            .where("f#{item_index}": {filter_group_id: f.filter_group_id})\
+            .where(arel_f[:numeric_value].lteq(f.numeric_value))
+        elsif type_suffix == 'ge'
+          # Greater than or equal to, for numeric filters.
+          f = Filter.find(filter_id)
+          records = records
+            .where("f#{item_index}": {filter_group_id: f.filter_group_id})\
+            .where(arel_f[:numeric_value].gteq(f.numeric_value))
+        else
+          render_json_error("Unknown filter type suffix: #{type_suffix}", :bad_request)
+          return nil
+        end
+      end
+
+      return records
     end
 
     def get_chart_order_direction(chart_type)

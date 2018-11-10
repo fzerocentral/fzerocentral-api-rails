@@ -9,4 +9,5 @@ class RecordSerializer < ActiveModel::Serializer
 
   belongs_to :chart
   belongs_to :user
+  has_many :filters, through: :record_filters
 end

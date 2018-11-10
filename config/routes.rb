@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  resources :filters
+  resources :filter_groups
   resources :chart_types
   resources :charts
   resources :chart_groups
