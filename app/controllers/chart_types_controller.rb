@@ -3,7 +3,12 @@ class ChartTypesController < ApplicationController
 
   # GET /chart_types
   def index
-    @chart_types = ChartType.all
+    if params.key?(:filter_group_id)
+      filter_group = FilterGroup.find(params[:filter_group_id])
+      @chart_types = filter_group.chart_types
+    else
+      @chart_types = ChartType.all
+    end
 
     render json: @chart_types
   end

@@ -6,8 +6,15 @@ class FilterGroupsController < ApplicationController
     chart_type = nil
 
     if params.key?(:chart_type_id)
-      chart_type = ChartType.find(params[:chart_type_id])
-      @filter_groups = chart_type.filter_groups
+      if params[:chart_type_id] == ''
+        # Get orphaned filter groups
+        @filter_groups =
+          FilterGroup.all.left_outer_joins(:chart_type_filter_groups)
+          .where(chart_type_filter_groups: {id: nil})
+      else
+        chart_type = ChartType.find(params[:chart_type_id])
+        @filter_groups = chart_type.filter_groups
+      end
     elsif params.key?(:chart_id)
       chart = Chart.find(params[:chart_id])
       chart_type = chart.chart_type
@@ -16,6 +23,10 @@ class FilterGroupsController < ApplicationController
       record = Record.find(params[:record_id])
       chart_type = record.chart.chart_type
       @filter_groups = chart_type.filter_groups
+    elsif params.key?(:game_id)
+      game = Game.find(params[:game_id])
+      @filter_groups = \
+        FilterGroup.joins(:chart_types).where(chart_types: { game: game })
     else
       @filter_groups = FilterGroup.all
     end
@@ -69,6 +80,10 @@ class FilterGroupsController < ApplicationController
 
     # Only allow a trusted parameter "white list" through.
     def filter_group_params
-      params.require(:filter_group).permit(:name, :description, :kind)
+      ActiveModelSerializers::Deserialization.jsonapi_parse(
+        params,
+        # Strong parameters.
+        only: [:name, :description, :kind],
+        key_transform: :underscore)
     end
 end
