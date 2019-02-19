@@ -51,6 +51,10 @@ class ChartTypesController < ApplicationController
 
     # Only allow a trusted parameter "white list" through.
     def chart_type_params
-      params.require(:chart_type).permit(:name, :format_spec, :order_ascending, :game_id)
+      ActiveModelSerializers::Deserialization.jsonapi_parse(
+        params,
+        # Strong parameters.
+        only: [:name, 'format-spec', 'order-ascending', :game],
+        key_transform: :underscore)
     end
 end

@@ -24,7 +24,7 @@ class ChartTypeFilterGroupsController < ApplicationController
 
   # POST /chart_type_filter_groups
   def create
-    @ctfg = ChartTypeFilterGroup.new(ctfg_params)
+    @ctfg = ChartTypeFilterGroup.new(create_params)
 
     ChartTypeFilterGroup.transaction do
       chart_type_ctfgs = ChartTypeFilterGroup.where(
@@ -72,10 +72,10 @@ class ChartTypeFilterGroupsController < ApplicationController
       chart_type_ctfgs = ChartTypeFilterGroup.where(
         chart_type: @ctfg.chart_type)
 
-      if ctfg_params.key?(:order_in_chart_type)
+      if update_params.key?(:order_in_chart_type)
 
         old_order = @ctfg.order_in_chart_type
-        new_order = ctfg_params[:order_in_chart_type]
+        new_order = update_params[:order_in_chart_type]
 
         # To fix the order of the other CTFGs while avoiding order conflicts,
         # first we set this CTFG's order to 0, then we inc/dec the order of
@@ -124,18 +124,18 @@ class ChartTypeFilterGroupsController < ApplicationController
 
       end
 
-      if @ctfg.update(ctfg_params)
+      if @ctfg.update(update_params)
+        # Restrict the order to the accepted range.
+        if @ctfg.order_in_chart_type < 1
+          @ctfg.update(order_in_chart_type: 1)
+        elsif @ctfg.order_in_chart_type > chart_type_ctfgs.length
+          @ctfg.update(order_in_chart_type: chart_type_ctfgs.length)
+        end
+
         render json: @ctfg
       else
         render json: @ctfg.errors, status: :unprocessable_entity
         raise ActiveRecord::Rollback
-      end
-
-      # Restrict the order to the accepted range.
-      if @ctfg.order_in_chart_type < 1
-        @ctfg.update(order_in_chart_type: 1)
-      elsif @ctfg.order_in_chart_type > chart_type_ctfgs.length
-        @ctfg.update(order_in_chart_type: chart_type_ctfgs.length)
       end
     end
   end
@@ -166,7 +166,7 @@ class ChartTypeFilterGroupsController < ApplicationController
     end
 
     # Only allow a trusted parameter "white list" through.
-    def ctfg_params
+    def create_params
       ActiveModelSerializers::Deserialization.jsonapi_parse(
         params,
         # Strong parameters.
@@ -174,6 +174,15 @@ class ChartTypeFilterGroupsController < ApplicationController
           'show-by-default'],
         # This transforms kebab-case attributes from the JSON API request to
         # snake_case.
+        key_transform: :underscore)
+    end
+
+    # Don't allow updating the CT or FG of a CTFG. Linking a new CT/FG pair
+    # can only be done by CTFG creation.
+    def update_params
+      ActiveModelSerializers::Deserialization.jsonapi_parse(
+        params,
+        only: ['order-in-chart-type', 'show-by-default'],
         key_transform: :underscore)
     end
 end

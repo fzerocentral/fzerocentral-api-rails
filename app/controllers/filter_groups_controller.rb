@@ -3,8 +3,6 @@ class FilterGroupsController < ApplicationController
 
   # GET /filter_groups
   def index
-    chart_type = nil
-
     if params.key?(:chart_type_id)
       if params[:chart_type_id] == ''
         # Get orphaned filter groups
@@ -13,30 +11,20 @@ class FilterGroupsController < ApplicationController
           .where(chart_type_filter_groups: {id: nil})
       else
         chart_type = ChartType.find(params[:chart_type_id])
-        @filter_groups = chart_type.filter_groups
+        @filter_groups = filter_groups_of_chart_type(chart_type)
       end
     elsif params.key?(:chart_id)
       chart = Chart.find(params[:chart_id])
-      chart_type = chart.chart_type
-      @filter_groups = chart_type.filter_groups
+      @filter_groups = filter_groups_of_chart_type(chart.chart_type)
     elsif params.key?(:record_id)
       record = Record.find(params[:record_id])
-      chart_type = record.chart.chart_type
-      @filter_groups = chart_type.filter_groups
+      @filter_groups = filter_groups_of_chart_type(record.chart.chart_type)
     elsif params.key?(:game_id)
       game = Game.find(params[:game_id])
       @filter_groups = \
         FilterGroup.joins(:chart_types).where(chart_types: { game: game })
     else
       @filter_groups = FilterGroup.all
-    end
-
-    if chart_type
-      @filter_groups.each do |filter_group|
-        ctfg = ChartTypeFilterGroup.find_by(
-          chart_type: chart_type, filter_group: filter_group)
-        filter_group.show_by_default = ctfg.show_by_default
-      end
     end
 
     render json: @filter_groups
@@ -85,5 +73,23 @@ class FilterGroupsController < ApplicationController
         # Strong parameters.
         only: [:name, :description, :kind],
         key_transform: :underscore)
+    end
+
+    def filter_groups_of_chart_type(chart_type)
+      # Get the chart type's filter groups in order
+      ordered_fg_ids = ChartTypeFilterGroup \
+        .where(chart_type: chart_type) \
+        .order(order_in_chart_type: :asc) \
+        .pluck('filter_group_id')
+      filter_groups = FilterGroup.find(ordered_fg_ids)
+
+      # Add show_by_default field from the m2m table
+      filter_groups.each do |filter_group|
+        ctfg = ChartTypeFilterGroup.find_by(
+          chart_type: chart_type, filter_group: filter_group)
+        filter_group.show_by_default = ctfg.show_by_default
+      end
+
+      return filter_groups
     end
 end
