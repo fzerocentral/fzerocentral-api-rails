@@ -13,7 +13,9 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should get index" do
-    record = Record.create(value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    record = Record.create(
+      value: 10, chart: @chart_1, user: @user_1,
+      achieved_at: DateTime.new(2017, 1, 1))
 
     get records_url, as: :json
     assert_response :success
@@ -26,7 +28,8 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
     assert_equal(record.id.to_s, record_0['id'])
     assert_equal('records', record_0['type'])
     assert_equal(10, record_0['attributes']['value'])
-    assert_not_nil(record_0['attributes']['achieved-at'])
+    assert_equal(
+      DateTime.new(2017, 1, 1), record_0['attributes']['achieved-at'])
     assert_equal(
       @chart_1.id.to_s, record_0['relationships']['chart']['data']['id'])
     assert_equal('charts', record_0['relationships']['chart']['data']['type'])
@@ -394,7 +397,7 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
         data: {
           attributes: {
             value: 10,
-            'achieved-at': DateTime.now(),
+            'achieved-at': DateTime.new(2017, 1, 1),
           },
           relationships: {
             chart: { data: { type: 'charts', id: @chart_1.id } },
@@ -404,35 +407,72 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
         },
       }, as: :json
     end
+    assert_response :created
 
-    assert_response 201
+    # Check field values
+    record = Record.find(JSON.parse(response.body)['data']['id'])
+    assert_equal(10, record.value)
+    assert_equal(DateTime.new(2017, 1, 1), record.achieved_at)
+    assert_equal(@chart_1.id, record.chart.id)
+    assert_equal(@user_1.id, record.user.id)
   end
 
   test "should show record" do
-    record = Record.create(value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    record = Record.create(
+      value: 10, chart: @chart_1, user: @user_1,
+      achieved_at: DateTime.new(2017, 1, 1))
 
     get record_url(record), as: :json
     assert_response :success
+
+    record = JSON.parse(response.body)['data']
+    assert_equal(10, record['attributes']['value'])
+    assert_equal(DateTime.new(2017, 1, 1), record['attributes']['achieved-at'])
+    assert_equal(
+      @chart_1.id.to_s,
+      record['relationships']['chart']['data']['id'])
+    assert_equal(
+      @user_1.id.to_s,
+      record['relationships']['user']['data']['id'])
   end
 
   test "should update record" do
-    record = Record.create(value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    record = Record.create(
+      value: 10, chart: @chart_1, user: @user_1,
+      achieved_at: DateTime.new(2017, 1, 1))
 
-    patch record_url(record), params: { record: {
-        value: 14,
-        chart_id: @chart_2.id,
-        user_id: @user_2.id,
-      } }, as: :json
-    assert_response 200
+    patch record_url(record), params: {
+      data: {
+        attributes: {
+          value: 14,
+          'achieved-at': DateTime.new(2017, 2, 17),
+        },
+        relationships: {
+          chart: { data: { type: 'charts', id: @chart_2.id } },
+          user: { data: { type: 'users', id: @user_2.id } },
+        },
+        type: 'records',
+      },
+    }, as: :json
+    assert_response :success
+
+    # Check field values
+    record.reload
+    assert_equal(14, record.value)
+    assert_equal(DateTime.new(2017, 2, 17), record.achieved_at)
+    assert_equal(@chart_2.id, record.chart.id)
+    assert_equal(@user_2.id, record.user.id)
   end
 
   test "should destroy record" do
-    record = Record.create(value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    record = Record.create(
+      value: 10, chart: @chart_1, user: @user_1,
+      achieved_at: DateTime.now())
 
     assert_difference('Record.count', -1) do
       delete record_url(record), as: :json
     end
 
-    assert_response 204
+    assert_response :no_content
   end
 end
