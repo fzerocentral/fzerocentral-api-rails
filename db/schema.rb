@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2018_10_28_234513) do
+ActiveRecord::Schema.define(version: 2019_02_02_000321) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -69,6 +69,16 @@ ActiveRecord::Schema.define(version: 2018_10_28_234513) do
     t.string "kind", default: "select", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "filter_implication_links", force: :cascade do |t|
+    t.bigint "implying_filter_id", null: false
+    t.bigint "implied_filter_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["implied_filter_id"], name: "index_filter_implication_links_on_implied_filter_id"
+    t.index ["implying_filter_id", "implied_filter_id"], name: "index_filter_implication_links_on_implying_and_implied", unique: true
+    t.index ["implying_filter_id"], name: "index_filter_implication_links_on_implying_filter_id"
   end
 
   create_table "filter_implications", force: :cascade do |t|
@@ -133,6 +143,8 @@ ActiveRecord::Schema.define(version: 2018_10_28_234513) do
   add_foreign_key "chart_types", "games"
   add_foreign_key "charts", "chart_groups"
   add_foreign_key "charts", "chart_types"
+  add_foreign_key "filter_implication_links", "filters", column: "implied_filter_id"
+  add_foreign_key "filter_implication_links", "filters", column: "implying_filter_id"
   add_foreign_key "filter_implications", "filters", column: "implied_filter_id"
   add_foreign_key "filter_implications", "filters", column: "implying_filter_id"
   add_foreign_key "filters", "filter_groups"
