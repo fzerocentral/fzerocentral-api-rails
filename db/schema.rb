@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_02_02_000321) do
+ActiveRecord::Schema.define(version: 2019_04_16_082427) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -96,9 +96,7 @@ ActiveRecord::Schema.define(version: 2019_02_02_000321) do
     t.integer "numeric_value"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "order_in_group"
     t.bigint "filter_group_id", null: false
-    t.index ["filter_group_id", "order_in_group"], name: "index_filters_on_group_and_order", unique: true
     t.index ["filter_group_id"], name: "index_filters_on_filter_group_id"
   end
 

@@ -4,7 +4,7 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
   setup do
     @filter_group = filter_groups(:one)
     @filter = Filter.create(
-      name: "Filter 1A", filter_group: @filter_group, order_in_group: 1)
+      name: "Filter 1A", filter_group: @filter_group)
   end
 
   test "should get index" do
@@ -14,12 +14,19 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
 
   test "should create filter" do
     assert_difference('Filter.count') do
-      post filters_url, params: { filter: {
-        filter_group_id: @filter.filter_group_id,
-        name: @filter.name,
-        order_in_group: 2,
-        numeric_value: 50,
-      } }, as: :json
+      post filters_url, params: {
+        data: {
+          relationships: {
+            'filter-group': { data: {
+              type: 'filter-groups', id: @filter.filter_group_id } },
+          },
+          attributes: {
+            name: @filter.name,
+            numeric_value: 50,
+          },
+          type: 'filters',
+        },
+      }, as: :json
     end
 
     assert_response 201
@@ -34,7 +41,6 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
     patch filter_url(@filter), params: { filter: {
       filter_group_id: @filter.filter_group_id,
       name: @filter.name,
-      order_in_group: @filter.order_in_group,
       numeric_value: 50,
     } }, as: :json
     assert_response 200

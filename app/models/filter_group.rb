@@ -9,5 +9,4 @@ end
 class FilterGroupMembership < ApplicationRecord
   belongs_to :filter_group
   belongs_to :filter
-  default_scope { order(order_in_group: :asc) }
 end

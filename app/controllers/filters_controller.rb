@@ -19,7 +19,7 @@ class FiltersController < ApplicationController
           .where(filter_implications: {id: nil})
       end
 
-      @filters = @filters.order(order_in_group: :asc)
+      @filters = @filters.order(name: :asc)
     else
       @filters = Filter.all
     end
@@ -65,6 +65,13 @@ class FiltersController < ApplicationController
 
     # Only allow a trusted parameter "white list" through.
     def filter_params
-      params.require(:filter).permit(:name, :filter_group_id, :order_in_group, :numeric_value)
+      ActiveModelSerializers::Deserialization.jsonapi_parse(
+        params,
+        # Strong parameters. `only` is applied before `key_transform`, so we
+        # must specify `'filter-group'` instead of `:filter_group`.
+        only: [:name, 'filter-group', 'numeric-value'],
+        # This transforms kebab-case attributes from the JSON API request to
+        # snake_case.
+        key_transform: :underscore)
     end
 end

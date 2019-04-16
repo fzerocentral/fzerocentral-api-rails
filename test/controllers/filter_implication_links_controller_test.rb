@@ -4,11 +4,11 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
   setup do
     @filter_group = filter_groups(:one)
     @filter_dolphin = Filter.create(
-      name: "Dolphin", filter_group: @filter_group, order_in_group: 1)
+      name: "Dolphin", filter_group: @filter_group)
     @filter_bizhawk = Filter.create(
-      name: "Bizhawk", filter_group: @filter_group, order_in_group: 2)
+      name: "Bizhawk", filter_group: @filter_group)
     @filter_emulator = Filter.create(
-      name: "Emulator", filter_group: @filter_group, order_in_group: 3)
+      name: "Emulator", filter_group: @filter_group)
     @link = FilterImplicationLink.create(
       implying_filter: @filter_dolphin, implied_filter: @filter_emulator)
   end
