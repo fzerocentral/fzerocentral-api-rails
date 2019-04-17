@@ -41,15 +41,6 @@ class FilterImplicationLinksController < ApplicationController
     end
   end
 
-  # PATCH/PUT /filter_implication_links/1
-  def update
-    if @link.update(link_params)
-      render json: @link
-    else
-      render json: @link.errors, status: :unprocessable_entity
-    end
-  end
-
   # DELETE /filter_implication_links/1
   def destroy
     @link.destroy

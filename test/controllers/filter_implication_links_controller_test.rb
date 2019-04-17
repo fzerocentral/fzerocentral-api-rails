@@ -55,26 +55,6 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
     assert_equal(@filter_emulator.id, link.implied_filter.id)
   end
 
-  test "should update filter implication link" do
-    patch filter_implication_link_url(@link), params: {
-      data: {
-        relationships: {
-          'implying-filter': { data: {
-            type: 'filters', id: @filter_bizhawk.id } },
-          'implied-filter': { data: {
-            type: 'filters', id: @filter_emulator.id } },
-        },
-        type: 'filter-implication-links',
-      },
-    }, as: :json
-    assert_response :success
-
-    # Check field values
-    @link.reload
-    assert_equal(@filter_bizhawk.id, @link.implying_filter.id)
-    assert_equal(@filter_emulator.id, @link.implied_filter.id)
-  end
-
   test "should destroy filter implication link" do
     assert_difference('FilterImplicationLink.count', -1) do
       delete filter_implication_link_url(@link), as: :json
