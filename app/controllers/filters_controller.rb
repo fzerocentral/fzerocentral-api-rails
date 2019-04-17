@@ -10,13 +10,22 @@ class FiltersController < ApplicationController
       filter_group = FilterGroup.find(params[:filter_group_id])
       @filters = filter_group.filters
 
-      chosen_only = params[:chosen_only].present?
-      if chosen_only
-        # Chosen filters only, not implied ones. Get the filters which have an
-        # empty set of implications_received.
-        # https://stackoverflow.com/a/39410256
-        @filters =  @filters.left_outer_joins(:implications_received)\
-          .where(filter_implications: {id: nil})
+      if params.key?(:is_implied)
+        if params[:is_implied] == 'true'
+          # Implied filters only, not chosen ones.
+          @filters = @filters.joins(:implications_received)
+        elsif params[:is_implied] == 'false'
+          # Chosen filters only, not implied ones. Get the filters which have an
+          # empty set of implications_received.
+          # https://stackoverflow.com/a/39410256
+          @filters = @filters.left_outer_joins(:implications_received)\
+            .where(filter_implications: {id: nil})
+        else
+          render_json_error(
+            "Unsupported is_implied value: #{params[:is_implied]}",
+            :bad_request)
+          return
+        end
       end
 
       @filters = @filters.order(name: :asc)
@@ -73,5 +82,12 @@ class FiltersController < ApplicationController
         # This transforms kebab-case attributes from the JSON API request to
         # snake_case.
         key_transform: :underscore)
+    end
+
+    # Render an error, following the JSON API standard.
+    def render_json_error(message, status)
+      render(
+        json: {errors: [{detail: message}]},
+        status: status)
     end
 end
