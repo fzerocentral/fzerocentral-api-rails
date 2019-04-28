@@ -10,19 +10,14 @@ class FiltersController < ApplicationController
       filter_group = FilterGroup.find(params[:filter_group_id])
       @filters = filter_group.filters
 
-      if params.key?(:is_implied)
-        if params[:is_implied] == 'true'
-          # Implied filters only, not chosen ones.
-          @filters = @filters.joins(:implications_received)
-        elsif params[:is_implied] == 'false'
-          # Chosen filters only, not implied ones. Get the filters which have an
-          # empty set of implications_received.
-          # https://stackoverflow.com/a/39410256
-          @filters = @filters.left_outer_joins(:implications_received)\
-            .where(filter_implications: {id: nil})
+      if params.key?(:usage_type)
+        if params[:usage_type] == 'choosable'
+          @filters = @filters.where(usage_type: 'choosable')
+        elsif params[:usage_type] == 'implied'
+          @filters = @filters.where(usage_type: 'implied')
         else
           render_json_error(
-            "Unsupported is_implied value: #{params[:is_implied]}",
+            "Unsupported usage_type value: #{params[:usage_type]}",
             :bad_request)
           return
         end
@@ -78,7 +73,7 @@ class FiltersController < ApplicationController
         params,
         # Strong parameters. `only` is applied before `key_transform`, so we
         # must specify `'filter-group'` instead of `:filter_group`.
-        only: [:name, 'filter-group', 'numeric-value'],
+        only: [:name, 'filter-group', 'numeric-value', 'usage-type'],
         # This transforms kebab-case attributes from the JSON API request to
         # snake_case.
         key_transform: :underscore)

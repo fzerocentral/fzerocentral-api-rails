@@ -5,21 +5,21 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
     @group = filter_groups(:one)
     @other_group = filter_groups(:two)
 
-    # Chosen filters
+    # Choosable filters
     @blueFalconF = Filter.create(
-      name: "Blue Falcon", filter_group: @group)
+      name: "Blue Falcon", filter_group: @group, usage_type: 'choosable')
     @gallantStarF = Filter.create(
-      name: "Gallant Star-G4", filter_group: @group)
+      name: "Gallant Star-G4", filter_group: @group, usage_type: 'choosable')
     @gamecubeF = Filter.create(
-      name: "Gamecube", filter_group: @other_group)
+      name: "Gamecube", filter_group: @other_group, usage_type: 'choosable')
 
     # Implied filters
     @customF = Filter.create(
-      name: "Custom", filter_group: @group)
+      name: "Custom", filter_group: @group, usage_type: 'implied')
     FilterImplicationLink.create(
       implying_filter: @gallantStarF, implied_filter: @customF)
     @consoleF = Filter.create(
-      name: "Console", filter_group: @other_group)
+      name: "Console", filter_group: @other_group, usage_type: 'implied')
     FilterImplicationLink.create(
       implying_filter: @gamecubeF, implied_filter: @consoleF)
   end
@@ -44,15 +44,13 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
     assert_equal(@gallantStarF.id.to_s, filters[2]['id'])
   end
 
-  test "should get chosen filters of a filter group" do
-    skip "this test fails because the left outer join returns both chosen and implied filters, but can't figure out why"
-
-    get filters_url(filter_group_id: @group.id, is_implied: false), as: :json
+  test "should get choosable filters of a filter group" do
+    get filters_url(filter_group_id: @group.id, usage_type: 'choosable'), as: :json
     assert_response :success
 
     filters = JSON.parse(response.body)['data']
 
-    # Should only contain this filter group's chosen filters
+    # Should only contain this filter group's choosable filters
     assert_equal(2, filters.length)
 
     # Should be in name-alphabetical order
@@ -61,9 +59,7 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should get implied filters of a filter group" do
-    skip "this test fails because the inner join returns no filters, but can't figure out why"
-
-    get filters_url(filter_group_id: @group.id, is_implied: true), as: :json
+    get filters_url(filter_group_id: @group.id, usage_type: 'implied'), as: :json
     assert_response :success
 
     filters = JSON.parse(response.body)['data']
@@ -74,8 +70,8 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
     assert_equal(@customF.id.to_s, filters[0]['id'])
   end
 
-  test "should respond 'bad request' on an invalid is_implied value" do
-    get filters_url(filter_group_id: @group.id, is_implied: 'nil'), as: :json
+  test "should respond 'bad request' on an invalid usage_type value" do
+    get filters_url(filter_group_id: @group.id, usage_type: 'nil'), as: :json
     assert_response :bad_request
   end
 
@@ -90,6 +86,7 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
           attributes: {
             name: "White Cat",
             numeric_value: 50,
+            usage_type: 'choosable',
           },
           type: 'filters',
         },
@@ -109,6 +106,7 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
       filter_group_id: @other_group.id,
       name: "Wii",
       numeric_value: 50,
+      usage_type: 'choosable',
     } }, as: :json
     assert_response :success
   end
