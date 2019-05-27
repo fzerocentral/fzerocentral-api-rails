@@ -1,9 +1,61 @@
 require 'test_helper'
 
+
+# Helper functions
+
+def filter_params(
+    fg: nil, name: nil, numeric_value: nil, usage_type: nil)
+  attributes = {}
+  if !name.nil?
+    attributes['name'] = name
+  end
+  if !numeric_value.nil?
+    attributes['numeric-value'] = numeric_value
+  end
+  if !usage_type.nil?
+    attributes['usage-type'] = usage_type
+  end
+
+  relationships = {}
+  if !fg.nil?
+    relationships['filter-group'] = {
+      data: { type: 'filter-groups', id: fg.id } }
+  end
+
+  return { data: {
+    attributes: attributes,
+    relationships: relationships,
+    type: 'filters',
+  } }
+end
+
+def create_link(implying_filter, implied_filter)
+  post filter_implication_links_url, params: {
+    data: {
+      relationships: {
+        'implying-filter': { data: {
+          type: 'filters', id: implying_filter.id } },
+        'implied-filter': { data: {
+          type: 'filters', id: implied_filter.id } },
+      },
+      type: 'filter-implication-links',
+    },
+  }, as: :json
+  new_link_data = JSON.parse(response.body)['data']
+  if new_link_data
+    return FilterImplicationLink.find(new_link_data['id'])
+  else
+    return nil
+  end
+end
+
+
 class FiltersControllerTest < ActionDispatch::IntegrationTest
   setup do
     @group = filter_groups(:one)
     @other_group = filter_groups(:two)
+    @numeric_group = FilterGroup.create(
+      name: "A name", description: "A description", kind: 'numeric')
 
     # Choosable filters
     @blueFalconF = Filter.create(
@@ -16,12 +68,10 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
     # Implied filters
     @customF = Filter.create(
       name: "Custom", filter_group: @group, usage_type: 'implied')
-    FilterImplicationLink.create(
-      implying_filter: @gallantStarF, implied_filter: @customF)
+    create_link(@gallantStarF, @customF)
     @consoleF = Filter.create(
       name: "Console", filter_group: @other_group, usage_type: 'implied')
-    FilterImplicationLink.create(
-      implying_filter: @gamecubeF, implied_filter: @consoleF)
+    create_link(@gamecubeF, @consoleF)
   end
 
   test "should get index" do
@@ -70,30 +120,204 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
     assert_equal(@customF.id.to_s, filters[0]['id'])
   end
 
-  test "should respond 'bad request' on an invalid usage_type value" do
-    get filters_url(filter_group_id: @group.id, usage_type: 'nil'), as: :json
-    assert_response :bad_request
+  test "should create filter" do
+    params = filter_params(
+      fg: @group, name: "White Cat", usage_type: 'choosable')
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :created
+
+    # Check field values
+    filter = Filter.find(JSON.parse(response.body)['data']['id'])
+    assert_equal("White Cat", filter.name)
+    assert_equal('choosable', filter.usage_type)
   end
 
-  test "should create filter" do
-    assert_difference('Filter.count') do
-      post filters_url, params: {
-        data: {
-          relationships: {
-            'filter-group': { data: {
-              type: 'filter-groups', id: @group.id } },
-          },
-          attributes: {
-            name: "White Cat",
-            numeric_value: 50,
-            usage_type: 'choosable',
-          },
-          type: 'filters',
-        },
-      }, as: :json
+  test "filter creation with missing name should get error" do
+    params = filter_params(
+      fg: @group, usage_type: 'choosable')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
     end
+    assert_response :bad_request
 
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/name', error['source']['pointer'])
+    assert_equal("can't be blank", error['detail'])
+  end
+
+  test "filter creation with blank name should get error" do
+    params = filter_params(
+      fg: @group, name: '', usage_type: 'choosable')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/name', error['source']['pointer'])
+    assert_equal("can't be blank", error['detail'])
+  end
+
+  test "filter creation with dupe name in same group should get error" do
+    params = filter_params(
+      fg: @group, name: 'Golden Fox', usage_type: 'choosable')
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :success
+
+    params = filter_params(
+      fg: @group, name: 'Golden Fox', usage_type: 'implied')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/name', error['source']['pointer'])
+    assert_equal(
+      "'Golden Fox' is already taken by another filter in this group" \
+      " (case insensitive)",
+      error['detail'])
+  end
+
+  test "dupe name checking should be case insensitive" do
+    params = filter_params(
+      fg: @group, name: 'Golden Fox', usage_type: 'choosable')
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :success
+
+    params = filter_params(
+      fg: @group, name: 'GOLDEN FOX', usage_type: 'implied')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/name', error['source']['pointer'])
+    assert_equal(
+      "'GOLDEN FOX' is already taken by another filter in this group" \
+      " (case insensitive)",
+      error['detail'])
+  end
+
+  test "filter creation with dupe name across groups should be OK" do
+    params = filter_params(
+      fg: @group, name: 'Golden Fox', usage_type: 'choosable')
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :success
+
+    params = filter_params(
+      fg: @other_group, name: 'Golden Fox', usage_type: 'implied')
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :success
+  end
+
+  test "should create numeric filter" do
+    params = filter_params(
+      fg: @numeric_group, name: "50%",
+      numeric_value: 50, usage_type: 'choosable')
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
     assert_response :created
+
+    # Check field values
+    filter = Filter.find(JSON.parse(response.body)['data']['id'])
+    assert_equal("50%", filter.name)
+    assert_equal(50, filter.numeric_value)
+    assert_equal('choosable', filter.usage_type)
+  end
+
+  test "numeric filter creation with missing numeric_value should get error" do
+    params = filter_params(
+      fg: @numeric_group, name: "50%", usage_type: 'choosable')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/numeric-value', error['source']['pointer'])
+    assert_equal("can't be blank", error['detail'])
+  end
+
+  test "filter creation with non-numeric numeric_value should get error" do
+    params = filter_params(
+      fg: @numeric_group, name: "50%",
+      numeric_value: '50a', usage_type: 'choosable')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/numeric-value', error['source']['pointer'])
+    assert_equal("is not a number", error['detail'])
+  end
+
+  test "filter creation with non-integer numeric_value should get error" do
+    params = filter_params(
+      fg: @numeric_group, name: "50%",
+      numeric_value: '50.0', usage_type: 'choosable')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/numeric-value', error['source']['pointer'])
+    assert_equal("must be an integer", error['detail'])
+  end
+
+  test "filter creation with missing usage_type should end up with default" do
+    params = filter_params(
+      fg: @group, name: "White Cat")
+    assert_difference('Filter.count') do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :created
+
+    # Check field values
+    filter = Filter.find(JSON.parse(response.body)['data']['id'])
+    assert_equal('choosable', filter.usage_type)
+  end
+
+  test "filter creation with unsupported usage_type should get error" do
+    params = filter_params(
+      fg: @group, name: "White Cat", usage_type: 'type_b')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/usage-type', error['source']['pointer'])
+    assert_equal(
+      "should be either 'choosable' or 'implied', not 'type_b'",
+      error['detail'])
+  end
+
+  test "filter creation with missing filter_group should get error" do
+    params = filter_params(
+      name: "White Cat", usage_type: 'choosable')
+    assert_difference('Filter.count', 0) do
+      post filters_url, params: params, as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/filter-group', error['source']['pointer'])
+    assert_equal("must exist", error['detail'])
   end
 
   test "should show filter" do
@@ -102,20 +326,67 @@ class FiltersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update filter" do
-    patch filter_url(@blueFalconF), params: { filter: {
-      filter_group_id: @other_group.id,
-      name: "Wii",
-      numeric_value: 50,
-      usage_type: 'choosable',
-    } }, as: :json
+    params = filter_params(
+      fg: @other_group, name: "Wii",
+      numeric_value: 50, usage_type: 'choosable')
+    patch filter_url(@blueFalconF), params: params, as: :json
     assert_response :success
+
+    # Check field values
+    filter = Filter.find(JSON.parse(response.body)['data']['id'])
+    assert_equal("Wii", filter.name)
+    assert_equal(50, filter.numeric_value)
+    assert_equal('choosable', filter.usage_type)
   end
 
   test "should destroy filter" do
     assert_difference('Filter.count', -1) do
       delete filter_url(@blueFalconF), as: :json
     end
-
     assert_response :no_content
+  end
+
+  test "trying to destroy filter with incoming implications should get error" do
+    assert_difference('Filter.count', 0) do
+      delete filter_url(@customF), as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "Cannot delete filter; it has existing implications", error['detail'])
+  end
+
+  test "trying to destroy filter with outgoing implications should get error" do
+    assert_difference('Filter.count', 0) do
+      delete filter_url(@gallantStarF), as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "Cannot delete filter; it has existing implications", error['detail'])
+  end
+
+  test "trying to destroy filter used in records should get error" do
+    game = games(:one)
+    chart_type = chart_types(:score)
+    chart_group = ChartGroup.create(name: "Group 1", parent_group: nil, order_in_parent: 1, game: game)
+    chart = Chart.create(name: "Chart 1", chart_type: chart_type, chart_group: chart_group, order_in_group: 1)
+    user = users(:one)
+    record = Record.create(chart: chart, user: user, value: 10)
+    RecordFilter.create(record: record, filter: @blueFalconF)
+
+    assert_difference('Filter.count', 0) do
+      delete filter_url(@blueFalconF), as: :json
+    end
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "Cannot delete filter; it's used in one or more records", error['detail'])
   end
 end

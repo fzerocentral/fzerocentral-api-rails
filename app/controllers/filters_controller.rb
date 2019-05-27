@@ -11,16 +11,7 @@ class FiltersController < ApplicationController
       @filters = filter_group.filters
 
       if params.key?(:usage_type)
-        if params[:usage_type] == 'choosable'
-          @filters = @filters.where(usage_type: 'choosable')
-        elsif params[:usage_type] == 'implied'
-          @filters = @filters.where(usage_type: 'implied')
-        else
-          render_json_error(
-            "Unsupported usage_type value: #{params[:usage_type]}",
-            :bad_request)
-          return
-        end
+        @filters = @filters.where(usage_type: params[:usage_type])
       end
 
       @filters = @filters.order(name: :asc)
@@ -43,7 +34,7 @@ class FiltersController < ApplicationController
     if @filter.save
       render json: @filter, status: :created, location: @filter
     else
-      render json: @filter.errors, status: :unprocessable_entity
+      render_resource_with_validation_errors(@filter)
     end
   end
 
@@ -52,13 +43,15 @@ class FiltersController < ApplicationController
     if @filter.update(filter_params)
       render json: @filter
     else
-      render json: @filter.errors, status: :unprocessable_entity
+      render_resource_with_validation_errors(@filter)
     end
   end
 
   # DELETE /filters/1
   def destroy
-    @filter.destroy
+    if !@filter.destroy
+      render_resource_with_validation_errors(@filter)
+    end
   end
 
   private
@@ -77,12 +70,5 @@ class FiltersController < ApplicationController
         # This transforms kebab-case attributes from the JSON API request to
         # snake_case.
         key_transform: :underscore)
-    end
-
-    # Render an error, following the JSON API standard.
-    def render_json_error(message, status)
-      render(
-        json: {errors: [{detail: message}]},
-        status: status)
     end
 end
