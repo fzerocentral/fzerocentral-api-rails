@@ -93,12 +93,70 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
       name: "Console", filter_group: @filter_group_2, usage_type: 'implied')
   end
 
-  test "should get index" do
+  test "should get index by filter group" do
     create_link(@cf1, @if1)
+    create_link(@fg2_cf1, @fg2_if1)
 
     params = {filter_group_id: @filter_group.id}
     get filter_implication_links_url(params), as: :json
     assert_response :success
+
+    # Check values
+    links = JSON.parse(response.body)['data']
+    assert_equal(1, links.length)
+    assert_equal(
+      @cf1.id.to_s, links[0]['relationships']['implying-filter']['data']['id'])
+    assert_equal(
+      @if1.id.to_s, links[0]['relationships']['implied-filter']['data']['id'])
+  end
+
+  test "should get index by implying filter" do
+    create_link(@cf1, @if1)
+    create_link(@cf3, @if1)
+
+    params = {implying_filter_id: @cf1.id}
+    get filter_implication_links_url(params), as: :json
+    assert_response :success
+
+    # Check values
+    links = JSON.parse(response.body)['data']
+    assert_equal(1, links.length)
+    assert_equal(
+      @cf1.id.to_s, links[0]['relationships']['implying-filter']['data']['id'])
+    assert_equal(
+      @if1.id.to_s, links[0]['relationships']['implied-filter']['data']['id'])
+  end
+
+  test "should get index by implied filter" do
+    create_link(@cf1, @if1)
+    create_link(@cf1, @if2)
+
+    params = {implied_filter_id: @if1.id}
+    get filter_implication_links_url(params), as: :json
+    assert_response :success
+
+    # Check values
+    links = JSON.parse(response.body)['data']
+    assert_equal(1, links.length)
+    assert_equal(
+      @cf1.id.to_s, links[0]['relationships']['implying-filter']['data']['id'])
+    assert_equal(
+      @if1.id.to_s, links[0]['relationships']['implied-filter']['data']['id'])
+  end
+
+  test "getting index with no params should get an error" do
+    create_link(@cf1, @if1)
+
+    params = {}
+    get filter_implication_links_url(params), as: :json
+    assert_response :bad_request
+
+    error = JSON.parse(response.body)['errors'][0]
+    assert_equal(false, error.has_key?('source'))
+    assert_equal(
+      "Must specify a filter_group_id, implying_filter_id, or" \
+      " implied_filter_id.",
+      error['detail'])
   end
 
   test "should show filter implication link" do
@@ -220,10 +278,13 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
     create_link(@cf1, @if1)
     assert_response :created
     create_link(@cf1, @if1)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Duplicate link")
-    assert_includes(error['detail'], "#{@cf1.name} to #{@if1.name}")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "There is already a link from #{@cf1.name} to #{@if1.name}.",
+      error['detail'])
 
     assert(link_exists(@cf1, @if1))
     assert(implication_set_matches([
@@ -233,9 +294,13 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
 
   test "should disallow creating a link between filters of different filter groups" do
     create_link(@cf1, @fg2_if1)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Group mismatch")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "Can't create a link between filters of different groups.",
+      error['detail'])
 
     assert_not(link_exists(@cf1, @fg2_if1))
     assert(implication_set_matches([]))
@@ -243,9 +308,12 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
 
   test "should disallow creating a link to a choosable filter" do
     create_link(@cf1, @cf2)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Target is choosable")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "Can't create a link pointing to a choosable filter.", error['detail'])
 
     assert_not(link_exists(@cf1, @cf2))
     assert(implication_set_matches([]))
@@ -253,9 +321,16 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
 
   test "should disallow creating a link that would be unused" do
     create_link(@if1, @if2)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Unused link")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "This link is not allowed because it would currently be unused: it" \
+      " won't connect any choosable filters to any other filter. Unused" \
+      " links are disallowed because they make it harder to check that the" \
+      " filter graph is still a multitree.",
+      error['detail'])
 
     assert_not(link_exists(@if1, @if2))
     assert(implication_set_matches([]))
@@ -274,10 +349,15 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
     create_link(@if1, @if3)
     assert_response :created
     create_link(@if2, @if3)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Creates redundant path")
-    assert_includes(error['detail'], "#{@cf1.name} to #{@if3.name}")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "This link is not allowed because it would create a second path from" \
+      " #{@cf1.name} to #{@if3.name}. This restriction is in place to ensure" \
+      " that the filter graph is still a multitree.",
+      error['detail'])
 
     assert(link_exists(@cf1, @if1))
     assert(link_exists(@cf1, @if2))
@@ -306,10 +386,15 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
     create_link(@if2, @if3)
     assert_response :created
     create_link(@if3, @if1)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Creates redundant path")
-    assert_includes(error['detail'], "#{@cf1.name} to #{@if1.name}")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "This link is not allowed because it would create a second path from" \
+      " #{@cf1.name} to #{@if1.name}. This restriction is in place to" \
+      " ensure that the filter graph is still a multitree.",
+      error['detail'])
 
     assert(link_exists(@cf1, @if1))
     assert(link_exists(@if1, @if2))
@@ -392,9 +477,17 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
     assert(link_exists(@if1, @if2))
 
     delete_link(@cf1, @if1)
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+
     error = JSON.parse(response.body)['errors'][0]
-    assert_equal(error['title'], "Renders other link unused")
+    assert_equal('/data/attributes/base', error['source']['pointer'])
+    assert_equal(
+      "This link-deletion is not allowed because there still exist links from" \
+      " #{@if1.name} that would be rendered unused: they wouldn't connect" \
+      " any choosable filters to any other filter. Unused links are" \
+      " disallowed because they make it harder to check that the filter" \
+      " graph is still a multitree.",
+      error['detail'])
 
     assert(link_exists(@cf1, @if1))
     assert(link_exists(@if1, @if2))

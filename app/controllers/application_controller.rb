@@ -17,4 +17,14 @@ class ApplicationController < ActionController::API
       # https://softwareengineering.stackexchange.com/a/342896/221516
       render_resource_with_errors(resource, :bad_request)
     end
+
+    def render_general_error(detail, status)
+      # Can include GET/read errors, for example, where there's not a readily
+      # obvious single resource to attach the errors to.
+      render json: {'errors': [{'detail': detail}]}, status: status
+    end
+
+    def render_general_validation_error(detail)
+      render_general_error(detail, :bad_request)
+    end
 end

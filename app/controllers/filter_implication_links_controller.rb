@@ -16,11 +16,9 @@ class FilterImplicationLinksController < ApplicationController
       @links = FilterImplicationLink.where(
         implied_filter_id: params[:implied_filter_id])
     else
-      render_json_error(
-        "Missing parameters",
+      render_general_validation_error(
         "Must specify a filter_group_id, implying_filter_id, or" \
-        " implied_filter_id.",
-        :unprocessable_entity)
+        " implied_filter_id.")
       return
     end
 
@@ -55,38 +53,34 @@ class FilterImplicationLinksController < ApplicationController
     existing_link = FilterImplicationLink.find_by(
       implying_filter: filter_A, implied_filter: filter_B)
     if ! existing_link.nil?
-      render_json_error(
-        "Duplicate link",
-        "There is already a link from #{filter_A.name} to #{filter_B.name}.",
-        :unprocessable_entity)
+      @link.errors.add(:base,
+        "There is already a link from #{filter_A.name} to #{filter_B.name}.")
+      render_resource_with_validation_errors(@link)
       return
     end
 
     if filter_A.filter_group.id != filter_B.filter_group.id
-      render_json_error(
-        "Group mismatch",
-        "Can't create a link between filters of different groups.",
-        :unprocessable_entity)
+      @link.errors.add(:base,
+        "Can't create a link between filters of different groups.")
+      render_resource_with_validation_errors(@link)
       return
     end
 
     if filter_B.usage_type == 'choosable'
-      render_json_error(
-        "Target is choosable",
-        "Can't create a link pointing to a choosable filter.",
-        :unprocessable_entity)
+      @link.errors.add(:base,
+        "Can't create a link pointing to a choosable filter.")
+      render_resource_with_validation_errors(@link)
       return
     end
 
     choosable_filters_reaching_A = choosable_filters_reaching_A(filter_A)
     if choosable_filters_reaching_A.empty?
-      render_json_error(
-        "Unused link",
+      @link.errors.add(:base,
         "This link is not allowed because it would currently be unused: it" \
         " won't connect any choosable filters to any other filter. Unused" \
         " links are disallowed because they make it harder to check that the" \
-        " filter graph is still a multitree.",
-        :unprocessable_entity)
+        " filter graph is still a multitree.")
+      render_resource_with_validation_errors(@link)
       return
     end
 
@@ -101,12 +95,12 @@ class FilterImplicationLinksController < ApplicationController
           existing_fi = FilterImplication.find_by(
             implying_filter: filter_X, implied_filter: filter_Y)
           if existing_fi.present?
-            render_json_error(
-              "Creates redundant path",
+            @link.errors.add(:base,
               "This link is not allowed because it would create a second" \
               " path from #{filter_X.name} to #{filter_Y.name}. This" \
               " restriction is in place to ensure that the filter graph is" \
-              " still a multitree.", :unprocessable_entity)
+              " still a multitree.")
+            render_resource_with_validation_errors(@link)
             raise ActiveRecord::Rollback
             return
           end
@@ -123,7 +117,7 @@ class FilterImplicationLinksController < ApplicationController
       if @link.save
         render json: @link, status: :created, location: @link
       else
-        render json: @link.errors, status: :unprocessable_entity
+        render_resource_with_validation_errors(@link)
         # Since we potentially did multiple DB changes (FIs as well as this
         # FIL), we should roll back the transaction if the FIL save fails.
         raise ActiveRecord::Rollback
@@ -158,14 +152,13 @@ class FilterImplicationLinksController < ApplicationController
       implications_to_B = FilterImplication.find_by(implied_filter: filter_B)
       links_from_B = FilterImplicationLink.find_by(implying_filter: filter_B)
       if implications_to_B.nil? && (! links_from_B.nil?)
-        render_json_error(
-          "Renders other link unused",
+        @link.errors.add(:base,
           "This link-deletion is not allowed because there still exist links" \
           " from #{filter_B.name} that would be rendered unused: they" \
           " wouldn't connect any choosable filters to any other filter." \
           " Unused links are disallowed because they make it harder to check" \
-          " that the filter graph is still a multitree.",
-          :unprocessable_entity)
+          " that the filter graph is still a multitree.")
+        render_resource_with_validation_errors(@link)
         raise ActiveRecord::Rollback
         return
       end
@@ -190,13 +183,6 @@ class FilterImplicationLinksController < ApplicationController
         # This transforms kebab-case attributes from the JSON API request to
         # snake_case.
         key_transform: :underscore)
-    end
-
-    # Render an error, following the JSON API standard.
-    def render_json_error(title, message, status)
-      render(
-        json: {errors: [{title: title, detail: message}]},
-        status: status)
     end
 
     def choosable_filters_reaching_A(filter_A)
