@@ -157,6 +157,7 @@ class RecordsController < ApplicationController
           return nil
         end
         filter_id = regex_match[1]
+        filter = Filter.find(filter_id)
         type_suffix = regex_match[2]
 
         # We need to join on record_filters and filters once per filter
@@ -179,28 +180,50 @@ class RecordsController < ApplicationController
         records = records.joins(arel_join1).joins(arel_join2)
 
         if type_suffix == ''
-          # No suffix; simple test for filter presence
-          records = records
-            .where("f#{item_index}": {id: filter_id})
+          # No suffix; simple test for filter match
+          if filter.usage_type == 'choosable'
+            # The record uses this filter
+            records = records
+              .where("f#{item_index}": {id: filter_id})
+          elsif filter.usage_type == 'implied'
+            # The record has a filter that implies this filter.
+            # Passing an array to the .where() hash should generate a
+            # WHERE ... IN ... query:
+            # https://guides.rubyonrails.org/active_record_querying.html#subset-conditions
+            implying_filter_ids = FilterImplication
+              .where(implied_filter_id: filter_id)
+              .pluck('implying_filter_id')
+            records = records
+              .where("f#{item_index}": {id: implying_filter_ids})
+          end
         elsif type_suffix == 'n'
-          # Negation. Records must have a filter in the same group which isn't
-          # the specified filter.
-          f = Filter.find(filter_id)
-          records = records
-            .where("f#{item_index}": {filter_group_id: f.filter_group_id})\
-            .where.not("f#{item_index}": {id: filter_id})
+          # Negation.
+          if filter.usage_type == 'choosable'
+            # The record has a filter in this group that doesn't match the
+            # specified filter.
+            records = records
+              .where("f#{item_index}": {filter_group_id: filter.filter_group_id})\
+              .where.not("f#{item_index}": {id: filter_id})
+          elsif filter.usage_type == 'implied'
+            # The record has a filter in this group that doesn't imply the
+            # specified filter.
+            implying_filter_ids = FilterImplication
+              .where(implied_filter_id: filter_id)
+              .pluck('implying_filter_id')
+            records = records
+              .where("f#{item_index}": {filter_group_id: filter.filter_group_id})\
+              .where.not("f#{item_index}": {id: implying_filter_ids})
+          end
         elsif type_suffix == 'le'
           # Less than or equal to, for numeric filters.
-          f = Filter.find(filter_id)
           records = records
-            .where("f#{item_index}": {filter_group_id: f.filter_group_id})\
-            .where(arel_f[:numeric_value].lteq(f.numeric_value))
+            .where("f#{item_index}": {filter_group_id: filter.filter_group_id})\
+            .where(arel_f[:numeric_value].lteq(filter.numeric_value))
         elsif type_suffix == 'ge'
           # Greater than or equal to, for numeric filters.
-          f = Filter.find(filter_id)
           records = records
-            .where("f#{item_index}": {filter_group_id: f.filter_group_id})\
-            .where(arel_f[:numeric_value].gteq(f.numeric_value))
+            .where("f#{item_index}": {filter_group_id: filter.filter_group_id})\
+            .where(arel_f[:numeric_value].gteq(filter.numeric_value))
         else
           render_json_error("Unknown filter type suffix: #{type_suffix}", :bad_request)
           return nil

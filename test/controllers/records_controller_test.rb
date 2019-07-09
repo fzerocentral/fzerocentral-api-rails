@@ -10,6 +10,48 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
     @chart_group = ChartGroup.create(name: "Group 1", parent_group: nil, order_in_parent: 1, game: @game)
     @chart_1 = Chart.create(name: "Chart 1", chart_type: @chart_type_score, chart_group: @chart_group, order_in_group: 1)
     @chart_2 = Chart.create(name: "Chart 2", chart_type: @chart_type_score, chart_group: @chart_group, order_in_group: 2)
+
+    @machine_group = FilterGroup.create(
+      name: "FG1", description: "A description", kind: 'select')
+    ChartTypeFilterGroup.create(
+      chart_type: @chart_type_score, filter_group: @machine_group,
+      order_in_chart_type: 1)
+    @gallant_star_g4_f = Filter.create(
+      name: "Gallant Star-G4", filter_group: @machine_group,
+      usage_type: 'choosable')
+    @omega_gantlet_v2_f = Filter.create(
+      name: "Omega Gantlet-V2", filter_group: @machine_group,
+      usage_type: 'choosable')
+    @titan_g4_f = Filter.create(
+      name: "Titan -G4 booster", filter_group: @machine_group,
+      usage_type: 'implied')
+    @b_booster_f = Filter.create(
+      name: "B custom booster", filter_group: @machine_group,
+      usage_type: 'implied')
+    @thunderbolt_v2_f = Filter.create(
+      name: "Thunderbolt -V2 booster", filter_group: @machine_group,
+      usage_type: 'implied')
+    FilterImplication.create(
+      implying_filter: @gallant_star_g4_f, implied_filter: @titan_g4_f)
+    FilterImplication.create(
+      implying_filter: @gallant_star_g4_f, implied_filter: @b_booster_f)
+    FilterImplication.create(
+      implying_filter: @omega_gantlet_v2_f, implied_filter: @thunderbolt_v2_f)
+
+    @setting_group = FilterGroup.create(
+      name: "FG2", description: "A description", kind: 'numeric')
+    ChartTypeFilterGroup.create(
+      chart_type: @chart_type_score, filter_group: @setting_group,
+      order_in_chart_type: 2)
+    @setting_30_f = Filter.create(
+      name: "30%", filter_group: @setting_group,
+      numeric_value: 30)
+    @setting_60_f = Filter.create(
+      name: "60%", filter_group: @setting_group,
+      numeric_value: 60)
+    @setting_90_f = Filter.create(
+      name: "90%", filter_group: @setting_group,
+      numeric_value: 90)
   end
 
   test "should get index" do
@@ -389,6 +431,234 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
     records = JSON.parse(response.body)['data']
     assert_equal(1, records.length)
     assert_equal("1'03\"006", records[0]['attributes']['value-display'])
+  end
+
+  test "can retrieve records matching a choosable filter" do
+    record_this_filter = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_this_filter, filter: @gallant_star_g4_f)
+    record_other_filter = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_other_filter, filter: @omega_gantlet_v2_f)
+    record_no_filter = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@gallant_star_g4_f.id}"), as: :json
+    assert_response :success
+
+    # Record with this filter: yes
+    # Record with a different filter in the same group: no
+    # Record with no filter: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_this_filter.id.to_s, records[0]['id'])
+  end
+
+  test "can retrieve records matching an implied filter" do
+    record_implying = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_implying, filter: @gallant_star_g4_f)
+    record_not_implying = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_not_implying, filter: @omega_gantlet_v2_f)
+    record_no_filter = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@b_booster_f.id}"), as: :json
+    assert_response :success
+
+    # Record implying this filter: yes
+    # Record not implying this filter: no
+    # Record with no filter: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_implying.id.to_s, records[0]['id'])
+  end
+
+  test "can retrieve records matching a numeric filter" do
+    record_this_filter = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_this_filter, filter: @setting_30_f)
+    record_other_filter = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_other_filter, filter: @setting_60_f)
+    record_no_filter = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@setting_30_f.id}"), as: :json
+    assert_response :success
+
+    # Record with this filter: yes
+    # Record with a different filter in the same group: no
+    # Record with no filter: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_this_filter.id.to_s, records[0]['id'])
+  end
+
+  test "can retrieve records NOT matching a choosable filter" do
+    record_this_filter = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_this_filter, filter: @gallant_star_g4_f)
+    record_other_filter = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_other_filter, filter: @omega_gantlet_v2_f)
+    record_no_filter = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@gallant_star_g4_f.id}n"), as: :json
+    assert_response :success
+
+    # Record with this filter: no
+    # Record with a different filter in the same group: yes
+    # Record with no filter: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_other_filter.id.to_s, records[0]['id'])
+  end
+
+  test "can retrieve records NOT matching an implied filter" do
+    record_implying = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_implying, filter: @gallant_star_g4_f)
+    record_not_implying = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(
+      record: record_not_implying, filter: @omega_gantlet_v2_f)
+    record_no_filter = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@b_booster_f.id}n"), as: :json
+    assert_response :success
+
+    # Record implying this filter: no
+    # Record not implying this filter: yes
+    # Record with no filter: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_not_implying.id.to_s, records[0]['id'])
+  end
+
+  test "can retrieve records NOT matching a numeric filter" do
+    record_this_filter = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_this_filter, filter: @setting_30_f)
+    record_other_filter = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_other_filter, filter: @setting_60_f)
+    record_no_filter = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@setting_30_f.id}n"), as: :json
+    assert_response :success
+
+    # Record with this filter: no
+    # Record with a different filter in the same group: yes
+    # Record with no filter: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_other_filter.id.to_s, records[0]['id'])
+  end
+
+  test "can retrieve records greater than or equal to a numeric filter" do
+    record_less = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_less, filter: @setting_30_f)
+    record_equal = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_equal, filter: @setting_60_f)
+    record_greater = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_greater, filter: @setting_90_f)
+    record_none = Record.create(
+      value: 13, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@setting_60_f.id}ge",
+      sort: 'value'), as: :json
+    assert_response :success
+
+    # Less than: no
+    # Equal: yes
+    # Greater than: yes
+    # None: no
+    # Ordered by value, descending
+    records = JSON.parse(response.body)['data']
+    assert_equal(2, records.length)
+    assert_equal(record_greater.id.to_s, records[0]['id'])
+    assert_equal(record_equal.id.to_s, records[1]['id'])
+  end
+
+  test "can retrieve records less than or equal to a numeric filter" do
+    record_less = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_less, filter: @setting_30_f)
+    record_equal = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_equal, filter: @setting_60_f)
+    record_greater = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_greater, filter: @setting_90_f)
+    record_none = Record.create(
+      value: 13, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@setting_60_f.id}le",
+      sort: 'value'), as: :json
+    assert_response :success
+
+    # Less than: yes
+    # Equal: yes
+    # Greater than: no
+    # None: no
+    # Ordered by value, descending
+    records = JSON.parse(response.body)['data']
+    assert_equal(2, records.length)
+    assert_equal(record_less.id.to_s, records[0]['id'])
+    assert_equal(record_equal.id.to_s, records[1]['id'])
+  end
+
+  test "can retrieve records satisfying multiple filter requirements" do
+    record_OO = Record.create(
+      value: 11, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_OO, filter: @gallant_star_g4_f)
+    RecordFilter.create(record: record_OO, filter: @setting_90_f)
+    record_OX = Record.create(
+      value: 10, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_OX, filter: @gallant_star_g4_f)
+    RecordFilter.create(record: record_OX, filter: @setting_30_f)
+    record_XO = Record.create(
+      value: 12, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    RecordFilter.create(record: record_XO, filter: @omega_gantlet_v2_f)
+    RecordFilter.create(record: record_XO, filter: @setting_60_f)
+    record_XX = Record.create(
+      value: 13, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(
+      chart_id: @chart_1.id, filters: "#{@titan_g4_f.id}-#{@setting_60_f.id}ge",
+      sort: 'value'), as: :json
+    assert_response :success
+
+    # First and second requirements: yes
+    # First only: no
+    # Second only: no
+    # Neither: no
+    records = JSON.parse(response.body)['data']
+    assert_equal(1, records.length)
+    assert_equal(record_OO.id.to_s, records[0]['id'])
   end
 
   test "should create record" do
