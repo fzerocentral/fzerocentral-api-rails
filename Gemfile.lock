@@ -47,6 +47,7 @@ GEM
       i18n (>= 0.7, < 2)
       minitest (~> 5.1)
       tzinfo (~> 1.1)
+    api-pagination (4.8.2)
     arel (9.0.0)
     builder (3.2.3)
     byebug (10.0.2)
@@ -79,6 +80,7 @@ GEM
     nio4r (2.3.1)
     nokogiri (1.10.1-x64-mingw32)
       mini_portile2 (~> 2.4.0)
+    pagy (3.3.2)
     pg (1.1.4-x64-mingw32)
     puma (3.12.0)
     rack (2.0.6)
@@ -131,8 +133,10 @@ PLATFORMS
 
 DEPENDENCIES
   active_model_serializers (~> 0.10)
+  api-pagination (~> 4.8.2)
   byebug
   dotenv-rails
+  pagy (~> 3.3.2)
   pg (>= 0.18, < 2.0)
   puma (~> 3.7)
   rails (~> 5.2.1)

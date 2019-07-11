@@ -14,6 +14,10 @@ gem 'pg', '>= 0.18', '< 2.0'
 gem 'puma', '~> 3.7'
 # JSON API helper; e.g. wrapping our data in an object with a 'data' key
 gem 'active_model_serializers', '~> 0.10'
+# Pagination, e.g. of API results. Pagy handles the core pagination
+# functionality. api-pagination handles the JSON API side of pagination.
+gem 'pagy', '~> 3.3.2'
+gem 'api-pagination', '~> 4.8.2'
 # Use Redis adapter to run Action Cable in production
 # gem 'redis', '~> 4.0'
 # Use ActiveModel has_secure_password

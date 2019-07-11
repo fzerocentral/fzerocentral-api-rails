@@ -19,7 +19,7 @@ class FiltersController < ApplicationController
       @filters = Filter.all
     end
 
-    render json: @filters
+    paginate json: @filters
   end
 
   # GET /filters/1
