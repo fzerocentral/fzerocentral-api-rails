@@ -19,6 +19,16 @@ class FiltersController < ApplicationController
       @filters = Filter.all
     end
 
+    if params.key?(:name_search)
+      # Remove all chars besides letters, numbers, and spaces
+      search_term = params[:name_search].gsub(/[^[:word:]\s]/, '')
+      # % on either side allows the search term to occur in the middle of a
+      # name
+      search_str = '%' + search_term + '%'
+      # ILIKE does case-insensitive search in PostgreSQL
+      @filters = @filters.where('name ILIKE ?', search_str)
+    end
+
     paginate json: @filters
   end
 
