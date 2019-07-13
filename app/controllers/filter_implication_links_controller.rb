@@ -10,14 +10,69 @@ class FilterImplicationLinksController < ApplicationController
       @links = FilterImplicationLink.joins(:implying_filter) \
         .where(filters: {filter_group_id: params[:filter_group_id]})
     elsif params.key?(:implying_filter_id)
+      # Get the links where the implying filter is as specified.
       @links = FilterImplicationLink.where(
         implying_filter_id: params[:implying_filter_id])
     elsif params.key?(:implied_filter_id)
+      # Get the links where the implied filter is as specified.
       @links = FilterImplicationLink.where(
         implied_filter_id: params[:implied_filter_id])
+    elsif params.key?(:filter_id)
+      # Get the links where the specified filter is either the implying or the
+      # implied filter.
+      outgoing_links = FilterImplicationLink.where(
+        implying_filter_id: params[:filter_id])
+      incoming_links = FilterImplicationLink.where(
+        implied_filter_id: params[:filter_id])
+
+      if params.key?(:linked_filter_search)
+        # The linked filter (implied if outgoing link, implying if incoming
+        # link) must match the provided search term.
+
+        # Remove all chars besides letters, numbers, and spaces
+        search_term = params[:linked_filter_search].gsub(/[^[:word:]\s]/, '')
+        # % on either side allows the search term to occur in the middle of a
+        # name
+        search_str = '%' + search_term + '%'
+
+        # outgoing_links needs to join on :implied_filter. incoming_links needs
+        # to join on :implying_filter. But if olinks and ilinks have different
+        # joins, then performing an `or` on them gets the error `Relation
+        # passed to #or must be structurally compatible`.
+        # So, both olinks and ilinks need to join on both fields.
+        # SO, both have ambiguity on the column name `filters`, meaning they
+        # need join aliases... meaning we need arel.
+        #
+        # The following is the arel equivalent of:
+        # INNER JOIN filters f1
+        # ON filter_implication_links.implying_filter_id = f1.id
+        # INNER JOIN filters f2
+        # ON filter_implication_links.implied_filter_id = f2.id
+        arel_fil = FilterImplicationLink.arel_table
+        arel_f1 = Filter.arel_table.alias("fimplying")
+        arel_f2 = Filter.arel_table.alias("fimplied")
+        arel_on1 = arel_fil.create_on(
+          arel_fil[:implying_filter_id].eq(arel_f1[:id]))
+        arel_join1 = arel_f1.create_join(
+          arel_f1, arel_on1, Arel::Nodes::InnerJoin)
+        arel_on2 = arel_fil.create_on(
+          arel_fil[:implied_filter_id].eq(arel_f2[:id]))
+        arel_join2 = arel_f2.create_join(
+          arel_f2, arel_on2, Arel::Nodes::InnerJoin)
+
+        # ILIKE does case-insensitive search in PostgreSQL
+        outgoing_links = outgoing_links.joins(arel_join1).joins(arel_join2) \
+          .where('fimplied.name ILIKE ?', search_str)
+        incoming_links = incoming_links.joins(arel_join1).joins(arel_join2) \
+          .where('fimplying.name ILIKE ?', search_str)
+      end
+
+      # Include both types of links.
+      @links = outgoing_links.or(incoming_links)
+
     else
       render_general_validation_error(
-        "Must specify a filter_group_id, implying_filter_id, or" \
+        "Must specify a filter_group_id, filter_id, implying_filter_id, or" \
         " implied_filter_id.")
       return
     end
@@ -31,7 +86,7 @@ class FilterImplicationLinksController < ApplicationController
       .order('implying_filters.name ASC') \
       .order('implied_filters.name ASC')
 
-    render json: @links
+    paginate json: @links
   end
 
   # GET /filter_implication_links/1

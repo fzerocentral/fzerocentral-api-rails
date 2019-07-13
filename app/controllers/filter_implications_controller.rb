@@ -20,7 +20,7 @@ class FilterImplicationsController < ApplicationController
       return
     end
 
-    render json: @implications
+    paginate json: @implications
   end
 
   private
