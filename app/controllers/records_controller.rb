@@ -77,8 +77,24 @@ class RecordsController < ApplicationController
       return
     end
 
+    should_paginate = true
+
     if improvements_option == 'flag'
       flag_improvements(@records, chart.chart_type)
+      # Too lazy to support flagging improvements + pagination, because:
+      # - `paginate` removes the is_improvement attribute for whatever reason,
+      #   so flag_improvements() must be called on the paginated results
+      #   instead of the full results.
+      # - If paginating, the first record's is_improvement attribute can only
+      #   be accurate if we know the records from all previous pages.
+      # - So flag_improvements() needs to take the full results AND the
+      #   paginated results, look at the full results to figure out what's an
+      #   improvement, and flag the corresponding paginated results
+      #   accordingly. Overall it's a moderate amount of trouble.
+      # - Finally, there's probably not a huge demand for supporting flagging
+      #   improvements + pagination together. How long can a particular
+      #   chart's record history be?
+      should_paginate = false
     elsif improvements_option == 'filter'
       @records = filter_to_improvements_only(@records, chart.chart_type)
     elsif improvements_option != nil
@@ -86,7 +102,13 @@ class RecordsController < ApplicationController
       return
     end
 
-    # Add human-readable strings of the record values
+    if should_paginate
+      @records = paginate(@records)
+    end
+
+    # Add human-readable strings of the record values.
+    # We do this AFTER pagination, since `paginate` removes the value_display
+    # attribute for whatever reason. (It doesn't remove the rank attribute.)
     add_record_displays(@records)
 
     render json: @records,

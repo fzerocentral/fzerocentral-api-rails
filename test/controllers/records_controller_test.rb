@@ -661,6 +661,30 @@ class RecordsControllerTest < ActionDispatch::IntegrationTest
     assert_equal(record_OO.id.to_s, records[0]['id'])
   end
 
+  test "should paginate" do
+    record_1 = Record.create(value: 1, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    record_2 = Record.create(value: 2, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+    record_3 = Record.create(value: 3, chart: @chart_1, user: @user_1, achieved_at: DateTime.now())
+
+    get records_url(per_page: 2), as: :json
+    assert_response :success
+
+    records = JSON.parse(response.body)['data']
+    assert_equal(
+      2, records.length, "First page result count should be correct")
+    assert_equal(
+      '3', response.headers['Total'], "Total header should be correct")
+    assert_equal(
+      '2', response.headers['Per-Page'], "Per-Page header should be correct")
+
+    get records_url(per_page: 2, page: 2), as: :json
+    assert_response :success
+
+    records = JSON.parse(response.body)['data']
+    assert_equal(
+      1, records.length, "Second page result count should be correct")
+  end
+
   test "should create record" do
     assert_difference('Record.count') do
       post records_url, params: {
