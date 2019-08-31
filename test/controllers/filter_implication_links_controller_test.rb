@@ -154,7 +154,7 @@ class FilterImplicationLinksControllerTest < ActionDispatch::IntegrationTest
     error = JSON.parse(response.body)['errors'][0]
     assert_equal(false, error.has_key?('source'))
     assert_equal(
-      "Must specify a filter_group_id, implying_filter_id, or" \
+      "Must specify a filter_group_id, filter_id, implying_filter_id, or" \
       " implied_filter_id.",
       error['detail'])
   end
