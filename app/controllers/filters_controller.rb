@@ -10,7 +10,7 @@ class FiltersController < ApplicationController
       filter_group = FilterGroup.find(params[:filter_group_id])
       @filters = filter_group.filters
 
-      if params.key?(:usage_type)
+      if params.key?(:usage_type) and params[:usage_type].present?
         @filters = @filters.where(usage_type: params[:usage_type])
       end
 
@@ -19,7 +19,7 @@ class FiltersController < ApplicationController
       @filters = Filter.all
     end
 
-    if params.key?(:name_search)
+    if params.key?(:name_search) and params[:name_search].present?
       # Remove all chars besides letters, numbers, and spaces
       search_term = params[:name_search].gsub(/[^[:word:]\s]/, '')
       # % on either side allows the search term to occur in the middle of a
