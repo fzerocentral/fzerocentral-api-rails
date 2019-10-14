@@ -86,7 +86,7 @@ class FilterImplicationLinksController < ApplicationController
       .order('implying_filters.name ASC') \
       .order('implied_filters.name ASC')
 
-    paginate json: @links
+    paginate json: @links, per_page: 10
   end
 
   # GET /filter_implication_links/1
