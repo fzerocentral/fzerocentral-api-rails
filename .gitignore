@@ -17,3 +17,6 @@
 /.env
 
 .byebug_history
+
+# Ignore output of gx_machine_filter_csv_generator.py.
+scripts/gx_machine_filters.csv
