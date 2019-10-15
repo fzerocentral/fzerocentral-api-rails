@@ -1,4 +1,8 @@
-# Import filters from a CSV file into a database.
+# Import filters and implication links from a CSV file into a database.
+# The CSV is assumed to define all filters and implication links of a
+# particular filter group (which is assumed to already exist).
+# WARNING: The filter group's existing links/implications will be deleted
+# before the import starts. (However, existing filters will not be deleted.)
 #
 # CSV format:
 # First row:
