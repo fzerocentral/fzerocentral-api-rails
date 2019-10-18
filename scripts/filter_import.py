@@ -80,7 +80,7 @@ if __name__ == '__main__':
             implication_link_names = row[1:]
             implied_filters.update(implication_link_names)
 
-    # Connect to an existing database
+    # Connect to the database
     password = getpass.getpass(f"Enter password for user {args.user}: ")
     conn = psycopg2.connect(
         f"host={args.host} port={args.port}"
