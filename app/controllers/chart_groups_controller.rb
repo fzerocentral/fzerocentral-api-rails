@@ -26,21 +26,47 @@ class ChartGroupsController < ApplicationController
         .order('order_in_parent ASC')
     end
 
-    render json: @chart_groups
+    # This will include all child groups and charts within this chart group,
+    # so that the chart hierarchy can be retrieved without needing N+1
+    # queries to the DB.
+    # This implementation effectively hard-codes the number of levels of group
+    # nesting that we support, though.
+    @chart_groups = @chart_groups.includes(
+      :charts, :child_groups, :game, :parent_group,
+      charts: [:chart_group, :chart_type],
+      child_groups: [
+        :charts, :child_groups, :game, :parent_group,
+        charts: [:chart_group, :chart_type],
+        child_groups: [
+          :charts, :child_groups, :game, :parent_group,
+          charts: [:chart_group, :chart_type],
+          child_groups: [
+            :charts, :game, :parent_group,
+            charts: [:chart_group, :chart_type],
+          ],
+        ],
+      ],
+    )
+
+    # This will include all child groups and charts within this chart group,
+    # so that the chart hierarchy can be listed without needing further
+    # queries to this API.
+    # This implementation effectively hard-codes the number of levels of group
+    # nesting that we support, though.
+    render json: @chart_groups,
+           include: 'child_groups,'\
+                    'child_groups.charts,'\
+                    'child_groups.child_groups,'\
+                    'child_groups.child_groups.charts,'\
+                    'child_groups.child_groups.child_groups,'\
+                    'child_groups.child_groups.child_groups.charts'
   end
 
   # GET /chart_groups/1
-  #
-  # This will include all child groups and charts within this chart group,
-  # so that the chart hierarchy can be listed without needing further queries.
-  # Though, including this without being asked (i.e. without include args)
-  # might be considered non-standard for JSON API.
   def show
     render json: @chart_group,
            include: 'charts,'\
-                    'child_groups.charts,'\
-                    'child_groups.child_groups.charts,'\
-                    'child_groups.child_groups.child_groups.charts'
+                    'child_groups.charts'
   end
 
   # POST /chart_groups
