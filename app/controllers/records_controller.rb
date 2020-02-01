@@ -22,6 +22,10 @@ class RecordsController < ApplicationController
       end
     end
 
+    # Use includes() to prevent N+1 DB queries.
+    @records = @records.includes(
+      :chart, :user, :filters, filters: [:filter_group])
+
     sort_method = params.fetch(:sort, 'date_submitted')
     if sort_method == 'date_submitted'
       # Latest date first. Date granularity is limited, so ties are possible.
@@ -111,8 +115,10 @@ class RecordsController < ApplicationController
     # attribute for whatever reason. (It doesn't remove the rank attribute.)
     add_record_displays(@records)
 
+    # Include filters and users so that the client doesn't have to make
+    # separate API calls to grab filters/users on the ranking.
     render json: @records,
-           include: 'filters'
+           include: 'filters,user'
   end
 
   # GET /records/1
