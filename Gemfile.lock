@@ -91,13 +91,16 @@ GEM
     mini_portile2 (2.4.0)
     minitest (5.13.0)
     nio4r (2.5.2)
+    nokogiri (1.10.5)
+      mini_portile2 (~> 2.4.0)
     nokogiri (1.10.5-x64-mingw32)
       mini_portile2 (~> 2.4.0)
     pagy (3.7.0)
+    pg (1.1.4)
     pg (1.1.4-x64-mingw32)
     puma (4.3.0)
       nio4r (~> 2.0)
-    rack (2.0.7)
+    rack (2.0.8)
     rack-test (1.1.0)
       rack (>= 1.0, < 3)
     rails (6.0.1)
@@ -146,6 +149,7 @@ GEM
     zeitwerk (2.2.1)
 
 PLATFORMS
+  ruby
   x64-mingw32
 
 DEPENDENCIES
