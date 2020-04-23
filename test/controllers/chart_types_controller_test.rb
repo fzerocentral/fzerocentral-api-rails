@@ -3,12 +3,31 @@ require 'test_helper'
 class ChartTypesControllerTest < ActionDispatch::IntegrationTest
   setup do
     @game = games(:one)
-    @game_2 = games(:one)
+    @game_2 = games(:two)
   end
 
   test "should get index" do
     get chart_types_url, as: :json
     assert_response :success
+  end
+
+  test "should get chart types of a game" do
+    ct1 = ChartType.create(
+      name: "A name", format_spec: [{}], order_ascending: false, game: @game)
+    ct2 = ChartType.create(
+      name: "A name", format_spec: [{}], order_ascending: false, game: @game)
+    other_ct = ChartType.create(
+      name: "A name", format_spec: [{}], order_ascending: false, game: @game_2)
+
+    get chart_types_url(game_id: @game.id), as: :json
+    assert_response :success
+    chart_types = JSON.parse(response.body)['data']
+
+    # Should contain ct1 and ct2, but not other_ct
+    ct_ids = chart_types.map{|ct| ct['id']}
+    assert_includes(ct_ids, ct1.id.to_s)
+    assert_includes(ct_ids, ct2.id.to_s)
+    assert_not_includes(ct_ids, other_ct.id.to_s)
   end
 
   test "should get chart types of a filter group" do

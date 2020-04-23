@@ -10,6 +10,10 @@ class ChartTypesController < ApplicationController
       @chart_types = ChartType.all
     end
 
+    if params.key?(:game_id)
+      @chart_types = @chart_types.where(game_id: params[:game_id])
+    end
+
     render json: @chart_types
   end
 
