@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  resources :ladders
   resources :filters
   resources :filter_groups
   resources :filter_implications
