@@ -3,12 +3,7 @@ class GamesController < ApplicationController
 
   # GET /games
   def index
-    if params.key?(:chart_type_id)
-      # Return a single game
-      @games = ChartType.find(params[:chart_type_id]).game
-    else
-      @games = Game.all
-    end
+    @games = Game.all
 
     render json: @games
   end
