@@ -16,7 +16,11 @@
 # Ignore the dotenv-rails environment variables file.
 /.env
 
+# Ignore byebug command history file.
 .byebug_history
+
+# Ignore IDE stuff.
+/.idea
 
 # Ignore output of gx_machine_filter_csv_generator.py.
 scripts/gx_machine_filters.csv
