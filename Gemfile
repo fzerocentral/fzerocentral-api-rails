@@ -15,7 +15,7 @@ gem 'rails', '~> 6.0.1'
 gem 'pg', '>= 1.1.4', '< 2.0'
 # Use Puma as the app server
 # Changelog: https://github.com/puma/puma/blob/master/History.md
-gem 'puma', '~> 4.3'
+gem 'puma', '~> 5'
 # JSON API helper; e.g. wrapping our data in an object with a 'data' key
 # Changelog: https://github.com/rails-api/active_model_serializers/blob/0-10-stable/CHANGELOG.md
 gem 'active_model_serializers', '~> 0.10.10'
