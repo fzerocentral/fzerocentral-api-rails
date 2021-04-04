@@ -9,7 +9,7 @@ end
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 # When upgrading, follow the upgrading steps here:
 # https://edgeguides.rubyonrails.org/upgrading_ruby_on_rails.html
-gem 'rails', '~> 6.0.1'
+gem 'rails', '~> 6.1.3.1'
 # Use postgresql as the database for Active Record
 # Changelog: https://github.com/ged/ruby-pg/blob/master/History.rdoc
 gem 'pg', '>= 1.1.4', '< 2.0'
