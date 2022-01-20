@@ -1,6 +1,6 @@
-# fzerocentral-api
+# fzerocentral-api-rails
 
-Data API for the (upcoming) F-Zero Central website. Uses Ruby on Rails.
+Old project; replaced with https://github.com/fzerocentral/fzerocentral-api because the primary maintainer at this time is more familiar with Django than Rails.
 
 
 ## Installation for development environments
